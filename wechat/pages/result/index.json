@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "看看这次的进步",
+  "usingComponents": {
+    "privacy-gate": "/components/privacy-gate/index"
+  }
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "text": "was",
+    "status": 200,
+    "ttsSeconds": 1.584,
+    "bytes": 77390
+  },
+  {
+    "text": "were",
+    "status": 200,
+    "ttsSeconds": 2.248,
+    "bytes": 70478
+  },
+  {
+    "text": "好了",
+    "status": 200,
+    "ttsSeconds": 1.13,
+    "bytes": 56654,
+    "asr": {
+      "status": 200,
+      "seconds": 0.32,
+      "data": {
+        "text": "好了。",
+        "final": true,
+        "provider": "tencent",
+        "durationMs": 1178
+      }
+    }
+  },
+  {
+    "text": "还没好",
+    "status": 200,
+    "ttsSeconds": 1.161,
+    "bytes": 69326,
+    "asr": {
+      "status": 200,
+      "seconds": 0.138,
+      "data": {
+        "text": "还没好。",
+        "final": true,
+        "provider": "tencent",
+        "durationMs": 1442
+      }
+    }
+  },
+  {
+    "text": "听不清",
+    "status": 200,
+    "ttsSeconds": 1.602,
+    "bytes": 65870,
+    "asr": {
+      "status": 200,
+      "seconds": 0.103,
+      "data": {
+        "text": "听不清。",
+        "final": true,
+        "provider": "tencent",
+        "durationMs": 1370
+      }
+    }
+  }
+]

@@ -1,0 +1,19 @@
+<view class="page">
+  <view class="eyebrow">在自己的节奏里，慢慢变好</view><view class="page-title">我的学习空间</view>
+  <view class="identity-card"><view class="avatar">听</view><view class="grow"><view class="identity-title">{{loggedIn ? '欢迎回来' : '你好，很高兴听见你'}}</view><view class="small muted">{{loggedIn ? userLabel : '用微信登录，开启一份新的练习'}}</view></view></view>
+  <view wx:if="{{error}}" class="note error">{{error}}</view>
+  <view wx:if="{{!loggedIn}}" class="card login-card">
+    <view class="section-title">把练习，留在自己的账号里</view><view class="muted">清单、听写进度和错词可在不同设备间同步。</view>
+    <checkbox-group bindchange="agree"><label class="agreement"><checkbox value="agree" checked="{{agreed}}" color="#6376b9"/><text>我已阅读并同意隐私说明；未满 14 周岁请由监护人阅读并同意。</text></label></checkbox-group>
+    <view class="row privacy-links"><text class="link small" bindtap="privacy">隐私说明</text><text class="link small" bindtap="contract">微信隐私保护指引</text></view>
+    <button id="login-privacy-agree" class="primary" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="login" disabled="{{busy || !agreed || !config.configured}}">{{busy ? '正在登录…' : config.configured ? '微信登录' : '服务准备中'}}</button>
+  </view>
+  <block wx:if="{{loggedIn}}">
+    <view class="card quota-card"><view class="between"><view class="section-title">今天的 AI 使用额度</view><view class="badge">北京时间每日重置</view></view><view class="quota-number">{{remaining}}<text> / {{limit}} 点剩余</text></view><view class="small muted">朗读 1 点 · 识别照片 5 点 · 整理清单 10 点</view><view class="small muted">语音转写 2 点 · 听写对话 5 点 · 拍照批改 10 点</view><view class="small muted quota-note">所有功能免费开放。每日额度用于控制服务负载，任务提交后计入用量；失败或取消也计入。</view></view>
+    <view class="card"><view class="between"><view><view class="section-title">学习记录同步</view><view class="muted">{{pending ? pending + ' 份本机修改等待同步' : '本机没有待同步的修改'}}</view></view><button class="mini" bindtap="sync" disabled="{{busy}}">同步</button></view><view class="small muted sync-note">多台设备同时编辑时会提示冲突，避免覆盖彼此的修改。</view></view>
+  </block>
+  <view class="card menu-card"><view class="menu-item" bindtap="privacy"><text>隐私说明与数据使用</text><text>→</text></view><view class="menu-item" bindtap="permissions"><text>照片与麦克风权限</text><text>→</text></view><button class="menu-item feedback-entry" open-type="feedback"><text>意见反馈</text><text>→</text></button><view class="menu-item" bindtap="contact"><text>联系运营者</text><text>→</text></view></view>
+  <view wx:if="{{loggedIn}}" class="account-actions"><button class="plain" bindtap="logout" disabled="{{busy}}">退出登录</button><button class="plain small" bindtap="deleteAccount" disabled="{{busy}}">注销账号并删除学习记录</button></view>
+  <view class="footer">听见 · 让每一次练习，都被认真对待</view>
+</view>
+<privacy-gate/>

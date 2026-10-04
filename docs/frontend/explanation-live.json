@@ -1,0 +1,25 @@
+{
+  "status": 200,
+  "result": {
+    "type": "explanation",
+    "explanation": {
+      "title": "run 的过去分词与现在完成时",
+      "summary": "run 的过去分词是 run，和动词原形拼写完全相同。它属于不规则动词，三个形式分别是：原形 run、过去式 ran、过去分词 run。现在完成时由 have/has + 过去分词构成，例句：I have run five miles this morning.（今天早上我已经跑了五英里。）",
+      "sections": [
+        {
+          "label": "三个形式对比",
+          "text": "动词原形：run\n过去式：ran\n过去分词：run\n注意：过去式和过去分词拼写不同，但过去分词和原形相同，容易记混。"
+        },
+        {
+          "label": "现在完成时例句",
+          "text": "I have run five miles this morning.\n翻译：今天早上我已经跑了五英里。\n结构分析：主语 I + have + 过去分词 run。"
+        },
+        {
+          "label": "复习建议",
+          "text": "run 的过去分词与原形同形，属于常见易错点。可与其他不规则动词一起背诵，例如 swim-swam-swum、sing-sang-sung、begin-began-begun，这一组都是过去分词与过去式不同、但与原形也不相同；而 run 是原形与过去分词相同的一类，需要单独标记区分。"
+        }
+      ]
+    },
+    "message": "run 的过去分词是 run，和动词原形拼写完全相同。它属于不规则动词，三个形式分别是：原形 run、过去式 ran、过去分词 run。现在完成时由 have/has + 过去分词构成，例句：I have run five miles this morning.（今天早上我已经跑了五英里。）\n\n三个形式对比：动词原形：run\n过去式：ran\n过去分词：run\n注意：过去式和过去分词拼写不同，但过去分词和原形相同，容易记混。\n\n现在完成时例句：I have run five miles this morning.\n翻译：今天早上我已经跑了五英里。\n结构分析：主语 I + have + 过去分词 run。\n\n复习建议：run 的过去分词与原形同形，属于常见易错点。可与其他不规则动词一起背诵，例如 swim-swam-swum、sing-sang-sung、begin-began-begun，这一组都是过去分词与过去式不同、但与原形也不相同；而 run 是原形与过去分词相同的一类，需要单独标记区分。"
+  }
+}

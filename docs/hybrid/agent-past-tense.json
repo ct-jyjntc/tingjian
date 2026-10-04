@@ -1,0 +1,15 @@
+{
+  "status": 429,
+  "seconds": 49.95,
+  "data": {
+    "trace": [
+      {
+        "tool": "inspect_material",
+        "label": "查看材料",
+        "status": "success",
+        "detail": "查看 1 份材料的真实文字与列位置"
+      }
+    ],
+    "error": "服务请求过多，请稍后重试"
+  }
+}

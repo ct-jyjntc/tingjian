@@ -1,0 +1,46 @@
+{
+  "name": "quiet-dictation",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/start-web.mjs dev",
+    "build": "next build",
+    "start": "node scripts/start-web.mjs start",
+    "test": "tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "mini:build": "node scripts/build-miniprogram.mjs",
+    "mini:release": "node scripts/build-miniprogram.mjs --release",
+    "mini:typecheck": "tsc -p wechat/tsconfig.json --noEmit",
+    "mini:check-server": "node --import tsx scripts/check-miniprogram-server.mjs"
+  },
+  "dependencies": {
+    "idb": "^8.0.3",
+    "lucide-react": "^0.468.0",
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sharp": "^0.35.5",
+    "tencentcloud-sdk-nodejs-asr": "^4.1.315",
+    "tencentcloud-sdk-nodejs-ocr": "^4.1.322",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.0.10",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "esbuild": "^0.28.2",
+    "miniprogram-api-typings": "^5.2.3",
+    "prettier": "^3.9.9",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "overrides": {
+    "tencentcloud-sdk-nodejs-common": {
+      "uuid": "^11.1.1"
+    }
+  }
+}

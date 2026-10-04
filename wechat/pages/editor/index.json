@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "准备听写清单",
+  "usingComponents": {
+    "privacy-gate": "/components/privacy-gate/index"
+  }
+}

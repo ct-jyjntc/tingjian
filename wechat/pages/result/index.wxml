@@ -1,0 +1,21 @@
+<view class="page with-actions">
+  <view class="eyebrow">每次复习，都让记忆更清楚一点</view><view class="page-title">看看这次的进步</view>
+  <view wx:if="{{loading}}" class="empty">正在读取听写记录…</view><view wx:if="{{error}}" class="note error">{{error}}</view>
+  <block wx:if="{{!loading && total}}">
+    <view class="result-overview"><view><view class="big-score">{{accuracy}}</view><view class="muted">已核查项目的正确率</view></view><view class="overview-detail"><view>清单 {{total}} 项 · 听写确认 {{written}} 项</view><view>核查 {{confirmed}} 项 · 正确 {{correct}} 项</view></view></view>
+    <view class="card"><view class="between"><view class="section-title">拍下答案，一起核对</view><button class="mini" bindtap="choose" disabled="{{busy}}">选择照片</button></view><view class="muted">也可以直接在下方填写答案。无法辨认的内容不算错。</view><image wx:if="{{photo}}" class="answer-photo" src="{{photo}}" mode="aspectFit" bindtap="preview"/><button wx:if="{{photo}}" class="primary photo-submit" bindtap="recognize" disabled="{{busy}}">{{busy ? '正在识别与核对…' : '识别这张答案'}}</button></view>
+    <view wx:if="{{message}}" class="note">{{message}}</view><button wx:if="{{busy}}" class="plain" bindtap="cancel">取消 AI 识别</button>
+    <view class="grading-rules"><view class="between"><text class="small muted">区分大小写</text><switch checked="{{caseSensitive}}" color="#6376b9" data-rule="caseSensitive" bindchange="rules" disabled="{{busy}}"/></view><view class="between"><text class="small muted">严格比较标点</text><switch checked="{{punctuation}}" color="#6376b9" data-rule="punctuation" bindchange="rules" disabled="{{busy}}"/></view></view>
+    <view class="note">勾选“已核查”表示你已确认识别文字和题号对应。只有明确确认的错误、漏写才进入错词本。</view>
+    <view wx:for="{{rows}}" wx:key="id" class="card result-item">
+      <view class="between"><view class="result-number">第 {{item.number}} 项</view><view class="badge {{item.status !== '正确' ? 'warm' : ''}}">{{item.confirmed ? item.status : '待核查 · ' + item.status}}</view></view>
+      <view class="expected">{{item.answer}}</view><view wx:if="{{item.spoken !== item.answer}}" class="small muted">朗读提示：{{item.spoken}}</view>
+      <view class="field-label">你写下的答案</view><input value="{{item.recognized}}" data-index="{{index}}" bindinput="edit" maxlength="4000" placeholder="手动填写或修正识别文字" disabled="{{busy}}"/>
+      <view class="reason">{{item.reason}}</view><checkbox-group data-index="{{index}}" bindchange="check"><label class="confirmation"><checkbox value="confirmed" checked="{{item.confirmed}}" color="#6376b9" disabled="{{busy}}"/>已核查文字与题号</label></checkbox-group>
+    </view>
+    <view wx:if="{{pending}}" class="note"><view>核查修改已留在本机，点击下方按钮同步。</view><button class="plain mini" bindtap="reloadCloud">发生冲突时，载入云端版本</button></view>
+    <button class="secondary again" bindtap="practiceAgain" disabled="{{!wrong || busy}}">把确认的错词再练一遍</button><button class="plain" bindtap="home">回到首页</button>
+  </block>
+</view>
+<view class="sticky-actions"><button class="primary" bindtap="save" disabled="{{loading || busy || !total}}">保存核查结果 · {{confirmed}} 项已确认</button></view>
+<privacy-gate/>

@@ -1,0 +1,16 @@
+<view class="page">
+  <view class="eyebrow">那些练习过的，都好好留着</view><view class="page-title">我的练习本</view>
+  <view class="library-tabs"><button class="{{tab === 'history' ? 'active' : ''}}" data-tab="history" bindtap="tab">听写历史 {{history.length}}</button><button class="{{tab === 'wrong' ? 'active' : ''}}" data-tab="wrong" bindtap="tab">错词本 {{wrong.length}}</button></view>
+  <view wx:if="{{!loggedIn}}" class="card empty"><view class="empty-title">登录后，练习会留在这里</view><view>换一台设备，也能接着复习。</view><button class="primary login-button" bindtap="login">微信登录</button></view>
+  <view wx:if="{{error}}" class="note error">{{error}}</view><view wx:if="{{loading}}" class="empty">正在整理练习本…</view>
+  <block wx:if="{{loggedIn && !loading && tab === 'history'}}">
+    <view wx:if="{{!history.length}}" class="card empty"><view class="empty-title">第一份听写，还在等你</view><view>完成一次练习，就能回来核对答案。</view><button class="plain" bindtap="home">开始今天的练习 →</button></view>
+    <view wx:for="{{history}}" wx:key="key" class="card history-card"><view class="between" data-key="{{item.key}}" bindtap="open"><view class="grow"><view class="small muted">{{item.date}}</view><view class="history-title">{{item.title}}</view><view class="small muted">{{item.count}} 项内容 · 已确认听写 {{item.confirmedCount}} 项</view></view><text class="link">→</text></view><view class="history-footer"><button class="plain mini" data-key="{{item.key}}" data-revision="{{item.revision}}" bindtap="removeHistory">删除记录</button></view></view>
+  </block>
+  <block wx:if="{{loggedIn && !loading && tab === 'wrong'}}">
+    <view class="note">这里只收录你亲自核查并确认的错词，无法辨认的答案不会自动进入。</view>
+    <view wx:if="{{!wrong.length}}" class="card empty"><view class="empty-title">暂时没有待复习的错词</view><view>听写结束后，核查答案就能整理错词。</view></view>
+    <view wx:for="{{wrong}}" wx:key="id" class="card wrong-card"><view class="grow"><view class="wrong-answer">{{item.answer}}</view><view class="small muted" wx:if="{{item.spoken !== item.answer}}">提示：{{item.spoken}}</view></view><button class="plain mini" data-id="{{item.id}}" bindtap="removeWrong">记住了 ✓</button></view>
+    <button wx:if="{{wrong.length}}" class="primary review-button" bindtap="review" disabled="{{busy}}">把这些词再练一遍 →</button>
+  </block>
+</view>

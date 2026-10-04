@@ -1,0 +1,22 @@
+{
+  "status": 200,
+  "seconds": 24.463314667,
+  "result": {
+    "items": [
+      {
+        "original": "begin began meet met",
+        "spoken": "begin began meet met",
+        "answer": "begin began meet met",
+        "source": "词表第二行",
+        "language": "English"
+      },
+      {
+        "original": "bring brought put put",
+        "spoken": "bring brought put put",
+        "answer": "bring brought put put",
+        "source": "词表第三行",
+        "language": "English"
+      }
+    ]
+  }
+}

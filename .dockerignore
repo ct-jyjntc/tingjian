@@ -1,0 +1,13 @@
+node_modules
+.next
+.env*
+.local
+miniprogram
+wechat
+docs
+tests
+services/**/.venv
+services/**/__pycache__
+services/tts/cache
+*.tsbuildinfo
+project.private.config.json

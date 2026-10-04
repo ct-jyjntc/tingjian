@@ -1,0 +1,29 @@
+{
+  "state": "unavailable",
+  "health": "offline",
+  "direct_8765_connection": "connection refused",
+  "web_proxy_http": 503,
+  "message": "本轮未获得有效 Qwen 生成耗时；未重启用户服务",
+  "attempts": [
+    {
+      "text": "begin",
+      "request": "first",
+      "error": "HTTPError"
+    },
+    {
+      "text": "begin",
+      "request": "cached",
+      "error": "HTTPError"
+    },
+    {
+      "text": "这一次请写动词的过去式。",
+      "request": "first",
+      "error": "HTTPError"
+    },
+    {
+      "text": "这一次请写动词的过去式。",
+      "request": "cached",
+      "error": "HTTPError"
+    }
+  ]
+}

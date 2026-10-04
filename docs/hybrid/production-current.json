@@ -1,0 +1,68 @@
+{
+  "checkedAt": "2026-10-02T16:49:15.987Z",
+  "home": {
+    "status": 200,
+    "hasTitle": true
+  },
+  "health": {
+    "status": 200,
+    "data": {
+      "VISION": {
+        "state": "configured",
+        "label": "已配置，待调用验证",
+        "provider": "tencent",
+        "model": "腾讯通用高精度 OCR · 保留版面"
+      },
+      "LLM": {
+        "state": "configured",
+        "label": "已配置，待调用验证",
+        "provider": "openai-compatible",
+        "model": "sensenova-6.8-flash-lite"
+      },
+      "ASR": {
+        "state": "configured",
+        "label": "已配置，待调用验证",
+        "provider": "tencent",
+        "model": "腾讯一句话识别 · 16k_zh"
+      },
+      "HANDWRITING": {
+        "state": "configured",
+        "label": "已配置，待调用验证",
+        "provider": "tencent",
+        "model": "腾讯通用手写体 OCR"
+      },
+      "TTS": {
+        "state": "configured",
+        "label": "Edge 在线语音已配置，待试听",
+        "backend": "edge-tts",
+        "model": "Edge 在线语音（非官方封装）",
+        "voices": [
+          {
+            "id": "edge-auto",
+            "label": "自动 · 晓晓中文 / Aria 英文"
+          },
+          {
+            "id": "zh-CN-XiaoxiaoNeural",
+            "label": "晓晓 · 中文女声"
+          },
+          {
+            "id": "zh-CN-YunxiNeural",
+            "label": "云希 · 中文男声"
+          },
+          {
+            "id": "en-US-AriaNeural",
+            "label": "Aria · 英文女声"
+          },
+          {
+            "id": "en-US-GuyNeural",
+            "label": "Guy · 英文男声"
+          }
+        ]
+      }
+    }
+  },
+  "tts": {
+    "status": 200,
+    "bytes": 77390
+  }
+}

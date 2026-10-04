@@ -1,0 +1,33 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    env_file: ../.env.local
+    environment:
+      APP_ACCESS_TOKEN: ${APP_ACCESS_TOKEN:?Set an administrator token of at least 24 characters}
+      EDGE_TTS_PYTHON: /opt/edge/bin/python
+      FFMPEG_PATH: /usr/bin/ffmpeg
+      MINI_DATABASE_FILE: /app/.local/miniprogram.sqlite
+      MINI_TRUST_PROXY: "1"
+    volumes:
+      - study-data:/app/.local
+    ports:
+      - "127.0.0.1:3000:3000"
+  https:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+volumes:
+  study-data:
+  caddy-data:
+  caddy-config:

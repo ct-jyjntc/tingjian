@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-10-02T21:25:23.240Z",
+  "phrase": "我想去拿支笔，先等我一下。",
+  "asr": {
+    "text": "我想去拿支笔，先等我一下。",
+    "final": true,
+    "provider": "tencent",
+    "durationMs": 2954
+  },
+  "reply": {
+    "type": "control",
+    "command": "pause",
+    "message": "好的，先去拿笔，我在这儿等你回来。"
+  },
+  "audioBytes": 141902,
+  "elapsedMs": 11904
+}

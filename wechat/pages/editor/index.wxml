@@ -1,0 +1,49 @@
+<view class="page with-actions">
+  <view class="eyebrow">把想练的内容，收进这份清单</view><view class="page-title">今天，听写什么？</view>
+  <view wx:if="{{error}}" class="note error">{{error}}</view>
+  <view wx:if="{{loading}}" class="empty">正在取出你的清单…</view>
+  <block wx:else>
+    <view class="card">
+      <view class="between"><view class="section-title">从课本开始</view><button class="mini" bindtap="chooseImage" disabled="{{busy}}">添加图片 ＋</button></view>
+      <view class="muted">拍照或选图，也可以先裁剪、旋转再识别。</view>
+      <block wx:if="{{photo}}"><image class="source-photo" src="{{photo}}" mode="aspectFit" bindtap="previewPhoto"/><view class="row photo-actions"><button class="mini" bindtap="crop" disabled="{{busy}}">裁剪 / 旋转</button><button class="mini plain" bindtap="restorePhoto" disabled="{{busy}}">恢复原图</button></view><view class="field-label">识别方式</view><picker range="{{modes}}" value="{{mode}}" bindchange="modeChange" disabled="{{busy}}"><view class="picker between">{{modes[mode]}} <text>⌄</text></view></picker><button class="primary recognize" bindtap="recognize" disabled="{{busy}}">识别并加入清单</button></block>
+      <view class="field-label">直接输入 · 每行一项</view><textarea value="{{inputText}}" bindinput="textInput" maxlength="30000" disabled="{{busy}}" placeholder="{{inputPlaceholder}}"/>
+      <view class="between input-footer"><text class="small muted">提示与答案不同，用 → 分开</text><button class="mini" bindtap="addText" disabled="{{busy || !inputText}}">加入清单</button></view>
+    </view>
+    <view wx:if="{{message}}" class="note preserve">{{message}}</view><button wx:if="{{busy}}" class="plain" bindtap="cancel">取消当前 AI 任务</button>
+    <view class="card agent-card">
+      <view class="between"><view class="section-title">✧ 和听见一起整理</view><view class="badge">学习助手</view></view>
+      <view class="muted">告诉我想练哪一部分，我会先给你一份草稿。</view>
+      <textarea class="agent-input" value="{{instruction}}" bindinput="instructionInput" maxlength="3000" disabled="{{busy}}" placeholder="例如：只听写过去式，每个单词一项"/>
+      <view class="between setting-line"><view><view>允许 AI 辅助出题</view><view class="small muted">关闭时，只整理原文</view></view><switch color="#6376b9" checked="{{generate}}" bindchange="generateChange" disabled="{{busy}}"/></view>
+      <button class="secondary" bindtap="ask" disabled="{{busy || !instruction || !count}}">{{busy ? '正在准备…' : '请帮我整理清单'}}</button>
+      <block wx:if="{{columns.length}}"><view class="field-label">最近一张材料 · 按列快捷整理</view><view class="chips"><button wx:for="{{columns}}" wx:key="*this" class="chip" data-column="{{item}}" bindtap="column" disabled="{{busy}}">第 {{item}} 列</button></view></block>
+      <view wx:if="{{proposalMessage}}" class="proposal"><view class="preserve">{{proposalMessage}}</view><view wx:for="{{trace}}" wx:key="index" class="trace"><text>{{item.status === 'success' ? '✓' : '·'}} {{item.label}}</text><view class="small muted">{{item.detail}}</view></view><view wx:for="{{proposal}}" wx:key="id" class="proposal-item"><text>{{item.number}}.</text><view class="grow">{{item.spoken}}<text wx:if="{{item.spoken !== item.answer}}"> → {{item.answer}}</text><view wx:if="{{item.generated}}" class="badge warm">AI 生成</view></view></view><view class="row"><button wx:if="{{proposal.length}}" class="primary grow" bindtap="apply">确认使用这份草稿</button><button class="plain" bindtap="discard">收起</button></view></view>
+    </view>
+    <view class="between list-heading"><view class="section-title">听写清单 <text class="muted">{{count}} 项</text></view><button class="plain mini" bindtap="undo" disabled="{{!undoable || busy}}">撤销</button></view>
+    <input class="list-title" value="{{title}}" bindblur="titleInput" maxlength="100" placeholder="给这份清单起个名字" disabled="{{busy}}"/>
+    <view wx:if="{{issueCount}}" class="note">有 {{issueCount}} 项需要对照课本核查，确认后才能开始。</view>
+    <view wx:if="{{!count}}" class="empty">清单还是空的，先拍一张照片或输入文字吧。</view>
+    <view wx:for="{{items}}" wx:key="id" class="item-card">
+      <view class="between" data-id="{{item.id}}" bindtap="edit"><view class="item-number">{{item.number}}</view><view class="grow"><view class="item-spoken">{{item.spoken || '待补全内容'}}</view><view wx:if="{{item.spoken !== item.answer}}" class="small muted">答案：{{item.answer || '待补全'}}</view><view wx:if="{{item.generated}}" class="badge warm">AI 生成 · 请核查</view></view><text class="small link">{{editingId === item.id ? '收起' : '编辑'}}</text></view>
+      <view wx:if="{{item.issue}}" class="note small">{{item.issue}}<button class="mini plain" data-id="{{item.id}}" bindtap="reviewed" disabled="{{busy}}">已对照原文，确认无误 ✓</button></view>
+      <view wx:if="{{editingId === item.id}}" class="item-edit"><view class="field-label">朗读内容</view><input value="{{item.spoken}}" data-id="{{item.id}}" data-field="spoken" bindblur="field" maxlength="1000" disabled="{{busy}}"/><view class="field-label">标准答案</view><input value="{{item.answer}}" data-id="{{item.id}}" data-field="answer" bindblur="field" maxlength="1000" disabled="{{busy}}"/><view class="field-label">发音替换（可选）</view><input value="{{item.pronunciation}}" data-id="{{item.id}}" data-field="pronunciation" bindblur="field" maxlength="1000" disabled="{{busy}}" placeholder="只影响发音，不修改标准答案"/><view class="small muted source-label">来源：{{item.source}}</view><view class="row"><button class="mini" data-id="{{item.id}}" data-delta="-1" bindtap="move" disabled="{{busy || index === 0}}">上移</button><button class="mini" data-id="{{item.id}}" data-delta="1" bindtap="move" disabled="{{busy || index === count - 1}}">下移</button><button class="mini plain danger" data-id="{{item.id}}" bindtap="remove" disabled="{{busy}}">删除</button></view></view>
+    </view>
+    <view class="row list-tools"><button class="mini" bindtap="splitWords" disabled="{{!count || busy}}">按英文单词拆分</button><button wx:if="{{sourceText}}" class="plain mini" bindtap="toggleSources">{{showSources ? '收起原文' : '查看识别原文'}}</button></view>
+    <view wx:if="{{showSources}}" class="card preserve small">{{sourceText}}</view>
+    <view class="card">
+      <view class="section-title">让听写，适合你的节奏</view><view class="muted">每项读完后等你，写好了再继续。</view>
+      <view class="field-label">朗读声音</view><picker range="{{voices}}" range-key="label" value="{{voiceIndex}}" bindchange="voice"><view class="picker between">{{voices[voiceIndex].label}} <text>⌄</text></view></picker>
+      <view class="field-label">语速 · {{settings.speed}} 倍</view><slider min="50" max="150" step="10" value="{{speedPercent}}" activeColor="#6376b9" block-size="20" bindchange="speed"/>
+      <view class="field-label">每项朗读</view><picker range="{{repeatLabels}}" value="{{repeatIndex}}" bindchange="repeats"><view class="picker">{{repeatLabels[repeatIndex]}}</view></picker>
+      <view wx:if="{{settings.repeats > 1}}"><view class="field-label">重复间隔 · {{settings.gap}} 秒</view><slider min="0" max="5" step="1" value="{{settings.gap}}" activeColor="#6376b9" block-size="20" bindchange="gap"/></view>
+      <view class="between setting-line"><text>随机排列本次内容</text><switch checked="{{settings.order === 'random'}}" bindchange="random" color="#6376b9"/></view>
+      <view class="between setting-line"><text>允许向助手提问和求提示</text><switch checked="{{settings.allowHints}}" bindchange="hints" color="#6376b9"/></view>
+      <view class="between setting-line"><text>练习时显示答案</text><switch checked="{{settings.showAnswer}}" bindchange="answers" color="#6376b9"/></view>
+      <button class="secondary" bindtap="preview" disabled="{{!count || busy}}">试听第一项</button>
+    </view>
+    <view wx:if="{{pending}}" class="note"><view>本机有尚未同步的修改</view><view class="row"><button class="mini plain" bindtap="save">立即同步</button><button class="mini plain" bindtap="cloudVersion">载入云端版本</button></view></view>
+  </block>
+</view>
+<view class="sticky-actions between"><view><view class="small muted">准备好了吗？</view><view>{{count}} 项内容</view></view><button class="primary" bindtap="start" disabled="{{loading || busy || !count || issueCount}}">开始听写 →</button></view>
+<privacy-gate/>

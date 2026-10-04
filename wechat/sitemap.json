@@ -1,0 +1,1 @@
+{ "desc": "学习记录不参与微信搜索索引", "rules": [{ "action": "disallow", "page": "*" }] }

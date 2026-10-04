@@ -1,0 +1,24 @@
+{
+  "expected_pairs": 47,
+  "xfyun": {
+    "http": 200,
+    "seconds": 1.441,
+    "normalized_pair_substring_coverage": 47,
+    "caveat": "仅文本覆盖，不能证明返回结果已经正确拆成独立词对；learn 的逗号丢失"
+  },
+  "ocrspace": {
+    "http": 200,
+    "wall_seconds": 3.01773,
+    "provider_reported_processing_ms": "640",
+    "recognized_pairs": 47,
+    "case_and_punctuation_exact_pairs": 46,
+    "case_and_punctuation_normalized_pairs": 47,
+    "differences": [
+      [
+        "learn",
+        "learnt, learned"
+      ]
+    ],
+    "access": "官方文档公开 demo key，仅用于验证，不作为应用生产密钥"
+  }
+}

@@ -1,0 +1,23 @@
+<view class="page home">
+  <view class="between masthead"><view class="wordmark">听见<text class="brand-dot">·</text></view><view class="small muted">一点点，听懂每一天</view></view>
+  <view class="hero">
+    <view class="eyebrow">今天，也有小小的进步</view>
+    <view class="hero-title"><text>把今天的生词，
+读进记忆里。</text></view>
+    <view class="hero-copy"><text>拍下课本，准备清单。
+我来读，你慢慢写。</text></view>
+    <view class="book-art" aria-hidden="true"><view class="book-back"></view><view class="book-front"><view class="book-line"></view><view class="book-line shorter"></view><view class="book-letter">Aa</view><view class="book-line"></view></view><view class="art-star">✦</view><view class="art-orbit"></view></view>
+    <view class="hero-footer"><view class="tiny-dot"></view>读完会等你，不用赶时间</view>
+  </view>
+  <view class="capture-actions"><button class="primary" data-source="camera" bindtap="newDraft">拍照开始 <text class="button-arrow">↗</text></button><button class="secondary" data-source="album" bindtap="newDraft">从相册选</button></view>
+  <button class="plain manual" data-source="text" bindtap="newDraft">也可以直接输入文字 <text>→</text></button>
+  <view wx:if="{{!loggedIn}}" class="login-note" bindtap="profile"><view>用微信登录，把练习好好收起来</view><text>→</text></view>
+  <view wx:if="{{error}}" class="note error">{{error}}</view>
+  <view class="between section-heading"><view class="section-title">我的练习</view><view class="small link" bindtap="library">查看练习本 →</view></view>
+  <view wx:if="{{active}}" class="card resume" bindtap="continuePractice"><view><view class="badge">听写进行中</view><view class="resume-title">接着上次的节奏</view><view class="muted">当前第 {{activeProgress}} 项</view></view><view class="resume-arrow">→</view></view>
+  <view wx:if="{{hasDraft}}" class="card draft-row" bindtap="continueDraft"><view><view class="resume-title">继续编辑清单</view><view class="muted">{{draftCount}} 项内容，等你准备好</view></view><text class="link">→</text></view>
+  <view wx:if="{{!active && !hasDraft}}" class="card empty"><view class="empty-book">✧</view><view class="empty-title">从一份小小的清单开始</view><view><text>语文生词、英语单词，
+都可以成为今天的练习。</text></view></view>
+  <view class="stats"><view bindtap="library"><text class="stat-number">{{historyCount}}</text><view class="muted">份听写记录</view></view><view class="stat-divider"></view><view bindtap="library"><text class="stat-number">{{wrongCount}}</text><view class="muted">个待巩固的词</view></view></view>
+  <view class="home-footnote">慢慢来，每一次听见都算数。</view>
+</view>

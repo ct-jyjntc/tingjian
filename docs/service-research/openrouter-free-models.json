@@ -1,0 +1,136 @@
+[
+  {
+    "id": "apodex/apodex-1.1-mini:free",
+    "modalities": [
+      "text"
+    ],
+    "structured": true
+  },
+  {
+    "id": "inclusionai/ling-3.0-flash-sante:free",
+    "modalities": [
+      "text"
+    ],
+    "structured": false
+  },
+  {
+    "id": "qwen/qwen3.8-27b:free",
+    "modalities": [
+      "text",
+      "image",
+      "video"
+    ],
+    "structured": true
+  },
+  {
+    "id": "dots-studio/dots-3-note-preview:free",
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "structured": true
+  },
+  {
+    "id": "liquid/lfm-2.5-2.6b:free",
+    "modalities": [
+      "text"
+    ],
+    "structured": true
+  },
+  {
+    "id": "nvidia/nemotron-3.5-lightning:free",
+    "modalities": [
+      "text"
+    ],
+    "structured": false
+  },
+  {
+    "id": "thinkingmachines/inkling-small:free",
+    "modalities": [
+      "text",
+      "image",
+      "audio"
+    ],
+    "structured": false
+  },
+  {
+    "id": "poolside/laguna-s-2.1:free",
+    "modalities": [
+      "text"
+    ],
+    "structured": false
+  },
+  {
+    "id": "thinkingmachines/inkling:free",
+    "modalities": [
+      "text",
+      "image",
+      "audio"
+    ],
+    "structured": false
+  },
+  {
+    "id": "poolside/laguna-xs-2.1:free",
+    "modalities": [
+      "text"
+    ],
+    "structured": false
+  },
+  {
+    "id": "cohere/north-mini-code:free",
+    "modalities": [
+      "text"
+    ],
+    "structured": false
+  },
+  {
+    "id": "nvidia/nemotron-3.5-content-safety:free",
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "structured": false
+  },
+  {
+    "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "modalities": [
+      "text"
+    ],
+    "structured": false
+  },
+  {
+    "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    "modalities": [
+      "text",
+      "audio",
+      "image",
+      "video"
+    ],
+    "structured": false
+  },
+  {
+    "id": "google/gemma-4-26b-a4b-it:free",
+    "modalities": [
+      "image",
+      "text",
+      "video"
+    ],
+    "structured": false
+  },
+  {
+    "id": "google/gemma-4-31b-it:free",
+    "modalities": [
+      "image",
+      "text",
+      "video"
+    ],
+    "structured": false
+  },
+  {
+    "id": "nvidia/nemotron-3-super-120b-a12b:free",
+    "modalities": [
+      "text"
+    ],
+    "structured": true
+  }
+]

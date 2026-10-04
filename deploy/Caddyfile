@@ -1,0 +1,15 @@
+tingjian.rainflowtb.cn {
+  request_body {
+    max_size 17MB
+  }
+  handle /api/mini/* {
+    reverse_proxy app:3000 {
+      header_up X-Real-IP {remote_host}
+    }
+  }
+  # The web AI settings remain accessible to the operator through an SSH
+  # tunnel to server-local port 3000, not through the public mini-app domain.
+  handle {
+    respond "听见智能听写" 200
+  }
+}

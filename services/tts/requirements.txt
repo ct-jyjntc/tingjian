@@ -1,0 +1,6 @@
+mlx-audio>=0.4.0
+fastapi>=0.115
+uvicorn>=0.34
+soundfile>=0.13
+numpy>=2
+librosa>=0.11

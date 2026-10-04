@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "听见陪你听写",
+  "usingComponents": {
+    "privacy-gate": "/components/privacy-gate/index"
+  }
+}

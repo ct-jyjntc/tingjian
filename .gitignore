@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.env*
+!.env.example
+.venv/
+__pycache__/
+services/tts/cache/
+*.tsbuildinfo
+.local/
+miniprogram/
+project.private.config.json
