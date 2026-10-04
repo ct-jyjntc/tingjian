@@ -1,3 +1,23 @@
-.privacy-mask { position: fixed; inset: 0; background: rgba(35, 40, 61, .42); z-index: 1000; display: flex; align-items: flex-end; }
-.privacy-sheet { background: #fffdf9; padding: 48rpx 40rpx calc(32rpx + env(safe-area-inset-bottom)); border-radius: 40rpx 40rpx 0 0; width: 100%; box-sizing: border-box; }
-.privacy-link { padding: 32rpx 0; color: #5368b9; }
+.privacy-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(24, 35, 53, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+}
+.privacy-sheet {
+  background: #fff;
+  padding: 40rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  border-radius: 32rpx 32rpx 0 0;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+.privacy-link {
+  min-height: 88rpx;
+  padding: 24rpx 0;
+  color: #252b25;
+  font-size: 27rpx;
+}

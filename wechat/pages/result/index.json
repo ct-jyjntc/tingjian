@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "看看这次的进步",
+  "navigationBarTitleText": "核查听写答案",
   "usingComponents": {
     "privacy-gate": "/components/privacy-gate/index"
   }

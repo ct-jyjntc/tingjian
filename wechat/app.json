@@ -10,15 +10,15 @@
   ],
   "window": {
     "navigationBarTitleText": "听见",
-    "navigationBarBackgroundColor": "#fbf9f5",
+    "navigationBarBackgroundColor": "#f5f5ef",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#fbf9f5",
+    "backgroundColor": "#f5f5ef",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
-    "color": "#8a8e9c",
-    "selectedColor": "#5368b9",
-    "backgroundColor": "#fffdf9",
+    "color": "#73756a",
+    "selectedColor": "#252b25",
+    "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [
       {
@@ -39,7 +39,8 @@
         "iconPath": "assets/user.png",
         "selectedIconPath": "assets/user-active.png"
       }
-    ]
+    ],
+    "custom": true
   },
   "networkTimeout": {
     "request": 30000,

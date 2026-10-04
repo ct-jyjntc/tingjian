@@ -9,6 +9,7 @@
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "mini:build": "node scripts/build-miniprogram.mjs",
+    "mini:dev": "node scripts/watch-miniprogram.mjs",
     "mini:release": "node scripts/build-miniprogram.mjs --release",
     "mini:typecheck": "tsc -p wechat/tsconfig.json --noEmit",
     "mini:check-server": "node --import tsx scripts/check-miniprogram-server.mjs"

@@ -24,6 +24,7 @@ Page({
     busy: false,
   },
   onShow() {
+    this.getTabBar?.()?.setData({ selected: 1 });
     void this.refresh();
   },
   async onPullDownRefresh() {

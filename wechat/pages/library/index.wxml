@@ -1,16 +1,165 @@
-<view class="page">
-  <view class="eyebrow">那些练习过的，都好好留着</view><view class="page-title">我的练习本</view>
-  <view class="library-tabs"><button class="{{tab === 'history' ? 'active' : ''}}" data-tab="history" bindtap="tab">听写历史 {{history.length}}</button><button class="{{tab === 'wrong' ? 'active' : ''}}" data-tab="wrong" bindtap="tab">错词本 {{wrong.length}}</button></view>
-  <view wx:if="{{!loggedIn}}" class="card empty"><view class="empty-title">登录后，练习会留在这里</view><view>换一台设备，也能接着复习。</view><button class="primary login-button" bindtap="login">微信登录</button></view>
-  <view wx:if="{{error}}" class="note error">{{error}}</view><view wx:if="{{loading}}" class="empty">正在整理练习本…</view>
-  <block wx:if="{{loggedIn && !loading && tab === 'history'}}">
-    <view wx:if="{{!history.length}}" class="card empty"><view class="empty-title">第一份听写，还在等你</view><view>完成一次练习，就能回来核对答案。</view><button class="plain" bindtap="home">开始今天的练习 →</button></view>
-    <view wx:for="{{history}}" wx:key="key" class="card history-card"><view class="between" data-key="{{item.key}}" bindtap="open"><view class="grow"><view class="small muted">{{item.date}}</view><view class="history-title">{{item.title}}</view><view class="small muted">{{item.count}} 项内容 · 已确认听写 {{item.confirmedCount}} 项</view></view><text class="link">→</text></view><view class="history-footer"><button class="plain mini" data-key="{{item.key}}" data-revision="{{item.revision}}" bindtap="removeHistory">删除记录</button></view></view>
+<view
+  class="page tab-page library {{loggedIn && tab === 'wrong' && wrong.length ? 'with-actions' : ''}}"
+>
+  <view class="library-cover"
+    ><view class="page-header"
+      ><view class="eyebrow">练过的，都在这里</view
+      ><view class="page-title">我的练习本</view
+      ><view class="page-description">练习有记录，进步看得见。</view></view
+    >
+    <view class="shelf-art" aria-hidden="true"
+      ><view class="shelf-book back">听</view
+      ><view class="shelf-book front"
+        ><text>练习本</text><view></view><view></view></view
+      ><view class="shelf-spark">✦</view></view
+    ></view
+  >
+  <view class="segmented library-tabs"
+    ><button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      class="{{tab === 'history' ? 'active' : ''}}"
+      data-tab="history"
+      bindtap="tab"
+      aria-pressed="{{tab === 'history'}}"
+    >
+      听写记录{{loggedIn && !loading && !error ? ' · ' + history.length : ''}}</button
+    ><button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      class="{{tab === 'wrong' ? 'active' : ''}}"
+      data-tab="wrong"
+      bindtap="tab"
+      aria-pressed="{{tab === 'wrong'}}"
+    >
+      错词本{{loggedIn && !loading && !error ? ' · ' + wrong.length : ''}}
+    </button></view
+  >
+  <view wx:if="{{!loggedIn}}" class="card empty"
+    ><view class="empty-symbol">听</view
+    ><view class="empty-title">登录后，练习会留在这里</view
+    ><view>清单、记录和错词，归在同一个账号下。</view
+    ><button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      class="primary login-button"
+      bindtap="login"
+    >
+      微信登录
+    </button></view
+  >
+  <view wx:elif="{{loading}}" class="card state-panel"
+    ><view class="loading-indicator"></view
+    ><text class="muted">正在整理练习本…</text></view
+  >
+  <view wx:elif="{{error}}" class="note error"
+    ><view class="note-title">暂时无法读取练习</view><view>{{error}}</view
+    ><button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      class="plain mini"
+      bindtap="refresh"
+    >
+      重新加载
+    </button></view
+  >
+  <block wx:elif="{{tab === 'history'}}">
+    <view wx:if="{{!history.length}}" class="card empty"
+      ><view class="empty-symbol">＋</view
+      ><view class="empty-title">从第一次听写开始</view
+      ><view>完成练习后，在这里拍照核查答案。</view
+      ><button
+        hover-class="tap-feedback"
+        hover-stay-time="80"
+        class="primary login-button"
+        bindtap="home"
+      >
+        去准备清单
+      </button></view
+    >
+    <view wx:for="{{history}}" wx:key="key" class="card history-card"
+      ><button
+        hover-class="tap-feedback"
+        hover-stay-time="80"
+        class="history-main between"
+        data-key="{{item.key}}"
+        bindtap="open"
+      >
+        <view
+          class="history-cover {{index % 2 ? 'sage' : 'yellow'}}"
+          aria-hidden="true"
+          ><text>听写</text><view class="cover-lines"></view
+          ><text class="cover-count">{{item.count}}<text>项</text></text></view
+        ><view class="grow"
+          ><view class="small muted">{{item.date}}</view
+          ><view class="history-title">{{item.title}}</view
+          ><view class="small muted"
+            >{{item.count}} 项 · 听写已确认 {{item.confirmedCount}} 项</view
+          ></view
+        ><text class="history-arrow" aria-hidden="true">↗</text></button
+      ><view class="history-footer"
+        ><text class="small muted">可继续核查答案</text
+        ><button
+          hover-class="tap-feedback"
+          hover-stay-time="80"
+          class="plain mini"
+          data-key="{{item.key}}"
+          data-revision="{{item.revision}}"
+          bindtap="removeHistory"
+          disabled="{{busy}}"
+        >
+          删除记录
+        </button></view
+      ></view
+    >
   </block>
-  <block wx:if="{{loggedIn && !loading && tab === 'wrong'}}">
-    <view class="note">这里只收录你亲自核查并确认的错词，无法辨认的答案不会自动进入。</view>
-    <view wx:if="{{!wrong.length}}" class="card empty"><view class="empty-title">暂时没有待复习的错词</view><view>听写结束后，核查答案就能整理错词。</view></view>
-    <view wx:for="{{wrong}}" wx:key="id" class="card wrong-card"><view class="grow"><view class="wrong-answer">{{item.answer}}</view><view class="small muted" wx:if="{{item.spoken !== item.answer}}">提示：{{item.spoken}}</view></view><button class="plain mini" data-id="{{item.id}}" bindtap="removeWrong">记住了 ✓</button></view>
-    <button wx:if="{{wrong.length}}" class="primary review-button" bindtap="review" disabled="{{busy}}">把这些词再练一遍 →</button>
+  <block wx:else>
+    <view class="note info"
+      >只收录你核查后确认的错词，识别不清的答案不会自动加入。</view
+    >
+    <view wx:if="{{!wrong.length}}" class="card empty"
+      ><view class="empty-symbol">✓</view
+      ><view class="empty-title">暂时没有待复习的错词</view
+      ><view>完成听写并保存核查结果后，错词会自动整理到这里。</view></view
+    >
+    <view wx:for="{{wrong}}" wx:key="id" class="card wrong-card"
+      ><view class="word-index">{{index + 1}}</view
+      ><view class="grow"
+        ><view class="wrong-answer">{{item.answer}}</view
+        ><view
+          class="small muted preserve"
+          wx:if="{{item.spoken !== item.answer}}"
+          >提示：{{item.spoken}}</view
+        ></view
+      ><button
+        hover-class="tap-feedback"
+        hover-stay-time="80"
+        class="mini secondary"
+        data-id="{{item.id}}"
+        bindtap="removeWrong"
+        disabled="{{busy}}"
+      >
+        已记住 ✓
+      </button></view
+    >
   </block>
 </view>
+<view
+  wx:if="{{loggedIn && !loading && !error && tab === 'wrong' && wrong.length}}"
+  class="sticky-actions library-actions"
+  ><view class="sticky-inner between"
+    ><view class="grow"
+      ><view class="section-title">{{wrong.length}} 个待巩固的词</view
+      ><view class="small muted">先检查清单，再开始听写</view></view
+    ><button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      class="primary"
+      bindtap="review"
+      disabled="{{busy}}"
+      loading="{{busy}}"
+    >
+      开始复习 →
+    </button></view
+  ></view
+>

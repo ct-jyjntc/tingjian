@@ -86,7 +86,16 @@ function runtime() {
     setTimeout,
     clearTimeout,
     __MINI_API_BASE_URL__: "https://mini.test",
-    Page: (page: any) => pages.push(page),
+    Behavior: (behavior: any) => behavior,
+    Page: (page: any) => {
+      for (const behavior of page.behaviors || []) {
+        page.data = { ...behavior.data, ...page.data };
+        for (const [key, method] of Object.entries(behavior.methods || {})) {
+          if (!(key in page)) page[key] = method;
+        }
+      }
+      pages.push(page);
+    },
     Component() {},
   });
   const modules = new Map<string, any>();
@@ -155,9 +164,14 @@ function runtime() {
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 test("first WeChat login handles the empty string returned for missing storage", async () => {
-  const app = runtime(), api = app.load("utils/api");
+  const app = runtime(),
+    api = app.load("utils/api");
   assert.equal(app.wx.getStorageSync("tingjian:auth:v1"), "");
-  const session = { token: "fixture-session", expiresAt: Date.now() + 60000, user: { id: "first-user" } };
+  const session = {
+    token: "fixture-session",
+    expiresAt: Date.now() + 60000,
+    user: { id: "first-user" },
+  };
   app.wx.login = (options: any) => options.success({ code: "fixture-code" });
   app.requests((options) => {
     assert.ok(options.url.endsWith("/login"));
@@ -442,4 +456,96 @@ test("editing a native AI proposal base prevents stale proposals from overwritin
   page.draft.items[0].spoken = "changed";
   await page.apply();
   assert.equal(page.draft.items[0].spoken, "changed");
+});
+
+test("new draft stays locked through confirmation and releases after cancellation or failure", async () => {
+  const app = runtime();
+  app.signIn();
+  const page = app.page("home");
+  page.setData({ hasDraft: true });
+  let confirmation: any;
+  let dialogs = 0;
+  let requests = 0;
+  app.wx.showModal = (options: any) => {
+    dialogs++;
+    confirmation = options;
+  };
+  app.requests((options) => {
+    requests++;
+    options.success({
+      statusCode: 503,
+      data: { error: "Service unavailable" },
+    });
+    options.complete();
+  });
+  const event = { currentTarget: { dataset: { source: "text" } } };
+  const first = page.newDraft(event);
+  await page.newDraft(event);
+  assert.equal(dialogs, 1);
+  assert.equal(requests, 0);
+  confirmation.success({ confirm: false });
+  await first;
+  assert.equal(page.data.creating, "");
+  page.setData({ hasDraft: false });
+  await page.newDraft(event);
+  assert.equal(requests, 1);
+  assert.equal(page.data.creating, "");
+});
+
+test("editing a result still requires renewed confirmation and returns native focus state on blur", () => {
+  const app = runtime();
+  app.signIn();
+  const page = app.page("result"),
+    domain = app.load("shared");
+  page.key = "history:layout-test";
+  page.record = {
+    session: { id: "layout-test", index: 0, items: [domain.newItem("apple")] },
+    results: [
+      { recognized: "apple", status: "正确", confirmed: true, reason: "" },
+    ],
+  };
+  page.focusField({ currentTarget: { dataset: { focusKey: "answer-0" } } });
+  page.edit({
+    currentTarget: { dataset: { index: 0 } },
+    detail: { value: "appl" },
+  });
+  assert.equal(page.data.focusKey, "answer-0");
+  assert.equal(page.record.results[0].confirmed, false);
+  assert.equal(page.data.confirmed, 0);
+  assert.equal(page.data.accuracy, "—");
+  page.blurField();
+  assert.equal(page.data.focusKey, "");
+});
+
+test("starting a practice cannot open duplicate confirmations or replace a cancelled session", async () => {
+  const app = runtime();
+  app.signIn();
+  const page = app.page("editor"),
+    domain = app.load("shared"),
+    store = app.load("utils/storage");
+  const existing = {
+    id: "keep-session",
+    phase: "paused",
+    items: [domain.newItem("original")],
+    index: 0,
+  };
+  store.writeLocal("session", existing);
+  page.loaded = true;
+  page.draft.items = [domain.newItem("new")];
+  let dialog: any,
+    count = 0;
+  app.wx.showModal = (options: any) => {
+    dialog = options;
+    count++;
+  };
+  const first = page.start();
+  await page.start();
+  await flush();
+  assert.equal(count, 1);
+  assert.equal(page.data.starting, true);
+  dialog.success({ confirm: false });
+  await first;
+  assert.equal(page.data.starting, false);
+  assert.equal(page.data.busy, false);
+  assert.equal(store.localDocument("session").id, "keep-session");
 });

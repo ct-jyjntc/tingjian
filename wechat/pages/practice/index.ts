@@ -23,6 +23,7 @@ import {
 import { AudioPlayer } from "../../utils/audio";
 import { VoiceRecorder, readBytes } from "../../utils/media";
 import { TaskScope, Cancelled } from "../../utils/task";
+import { formFocus } from "../../behaviors/form";
 import {
   confirm,
   notify,
@@ -49,6 +50,7 @@ const labels: Record<Session["phase"], string> = {
   error: "声音暂时没跟上",
 };
 Page({
+  behaviors: [formFocus],
   data: {
     loading: true,
     error: "",
@@ -111,6 +113,9 @@ Page({
   },
   onShow() {
     this.visible = true;
+  },
+  home() {
+    wx.switchTab({ url: "/pages/home/index" });
   },
   onHide() {
     this.visible = false;
@@ -322,12 +327,10 @@ Page({
     if (["playing", "preparing"].includes(this.session.phase))
       this.update(transition(this.session, "pause", this.session.round));
     const context = sessionContext(this.session),
-      history = this.data.turns
-        .slice(-8)
-        .map((turn) => ({
-          role: turn.role,
-          content: turn.text.slice(0, 30000),
-        }));
+      history = this.data.turns.slice(-8).map((turn) => ({
+        role: turn.role,
+        content: turn.text.slice(0, 30000),
+      }));
     const scope = (this.assistantScope = new TaskScope());
     this.append({ id: recordId(), role: "user", text });
     this.setData({ assistantBusy: true, feedback: "听见正在理解你的想法…" });

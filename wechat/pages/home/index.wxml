@@ -1,23 +1,189 @@
-<view class="page home">
-  <view class="between masthead"><view class="wordmark">听见<text class="brand-dot">·</text></view><view class="small muted">一点点，听懂每一天</view></view>
-  <view class="hero">
-    <view class="eyebrow">今天，也有小小的进步</view>
-    <view class="hero-title"><text>把今天的生词，
-读进记忆里。</text></view>
-    <view class="hero-copy"><text>拍下课本，准备清单。
-我来读，你慢慢写。</text></view>
-    <view class="book-art" aria-hidden="true"><view class="book-back"></view><view class="book-front"><view class="book-line"></view><view class="book-line shorter"></view><view class="book-letter">Aa</view><view class="book-line"></view></view><view class="art-star">✦</view><view class="art-orbit"></view></view>
-    <view class="hero-footer"><view class="tiny-dot"></view>读完会等你，不用赶时间</view>
+<view class="page tab-page home">
+  <view class="masthead between">
+    <view class="brand-lockup"
+      ><view class="brand-emblem"
+        ><view></view><view></view><view></view><view></view></view
+      ><view class="wordmark">听见</view
+      ><view class="brand-caption">把练习，变成进步</view></view
+    >
+    <button
+      class="profile-shortcut"
+      hover-class="tap-feedback"
+      bindtap="profile"
+      aria-label="我的账号"
+    >
+      <image src="/assets/user.png" mode="aspectFit" />
+    </button>
   </view>
-  <view class="capture-actions"><button class="primary" data-source="camera" bindtap="newDraft">拍照开始 <text class="button-arrow">↗</text></button><button class="secondary" data-source="album" bindtap="newDraft">从相册选</button></view>
-  <button class="plain manual" data-source="text" bindtap="newDraft">也可以直接输入文字 <text>→</text></button>
-  <view wx:if="{{!loggedIn}}" class="login-note" bindtap="profile"><view>用微信登录，把练习好好收起来</view><text>→</text></view>
-  <view wx:if="{{error}}" class="note error">{{error}}</view>
-  <view class="between section-heading"><view class="section-title">我的练习</view><view class="small link" bindtap="library">查看练习本 →</view></view>
-  <view wx:if="{{active}}" class="card resume" bindtap="continuePractice"><view><view class="badge">听写进行中</view><view class="resume-title">接着上次的节奏</view><view class="muted">当前第 {{activeProgress}} 项</view></view><view class="resume-arrow">→</view></view>
-  <view wx:if="{{hasDraft}}" class="card draft-row" bindtap="continueDraft"><view><view class="resume-title">继续编辑清单</view><view class="muted">{{draftCount}} 项内容，等你准备好</view></view><text class="link">→</text></view>
-  <view wx:if="{{!active && !hasDraft}}" class="card empty"><view class="empty-book">✧</view><view class="empty-title">从一份小小的清单开始</view><view><text>语文生词、英语单词，
-都可以成为今天的练习。</text></view></view>
-  <view class="stats"><view bindtap="library"><text class="stat-number">{{historyCount}}</text><view class="muted">份听写记录</view></view><view class="stat-divider"></view><view bindtap="library"><text class="stat-number">{{wrongCount}}</text><view class="muted">个待巩固的词</view></view></view>
-  <view class="home-footnote">慢慢来，每一次听见都算数。</view>
+  <view class="hero-card">
+    <view class="hero-tag"
+      ><view class="tag-dot"></view>{{active ? '还有一场听写，在等你' : hasDraft
+      ? '你的清单，准备好了' : '今天，也要有小小的进步'}}</view
+    >
+    <view class="hero-copy"
+      ><view class="hero-title"
+        ><view>听见声音，</view><view>记住新知。</view></view
+      ><view class="hero-description"
+        >{{active ? '第 ' + activeProgress + ' 项 · 按自己的节奏继续' : hasDraft
+        ? draftCount + ' 项内容，等你慢慢写' : '我来读，你慢慢写。'}}</view
+      ></view
+    >
+    <image
+      class="hero-art"
+      src="/assets/study-still-life.png"
+      mode="aspectFit"
+      aria-hidden="true"
+    />
+    <view class="hero-action">
+      <button
+        wx:if="{{active && !loading && !error}}"
+        class="primary hero-button"
+        hover-class="tap-feedback"
+        bindtap="continuePractice"
+      >
+        <text>继续听写</text><text>↗</text>
+      </button>
+      <button
+        wx:elif="{{hasDraft && !loading && !error}}"
+        class="primary hero-button"
+        hover-class="tap-feedback"
+        bindtap="continueDraft"
+      >
+        <text>继续编辑</text><text>↗</text>
+      </button>
+      <button
+        wx:else
+        class="primary hero-button"
+        hover-class="tap-feedback"
+        data-source="camera"
+        bindtap="newDraft"
+        loading="{{creating === 'camera' || loading}}"
+        disabled="{{!!creating || loading || error}}"
+      >
+        <text>{{loading ? '找回练习中' : '拍照开始'}}</text
+        ><text wx:if="{{!loading}}">↗</text>
+      </button>
+    </view>
+    <view class="hero-footnote"
+      ><text class="small-spark">✦</text> 每项写好了，再继续。</view
+    >
+  </view>
+  <view wx:if="{{error}}" class="note error"
+    ><view class="note-title">练习暂时无法加载</view><view>{{error}}</view
+    ><button hover-class="tap-feedback" class="plain mini" bindtap="refresh">
+      重新加载
+    </button></view
+  >
+  <view class="section-heading between"
+    ><view class="section-title">开始一份新练习</view
+    ><text class="section-note">从熟悉的内容开始</text></view
+  >
+  <view class="entry-grid">
+    <button
+      class="entry-card"
+      hover-class="tap-feedback"
+      data-source="camera"
+      bindtap="newDraft"
+      loading="{{creating === 'camera'}}"
+      disabled="{{!!creating || loading || error}}"
+    >
+      <view class="entry-icon camera-tint"
+        ><image src="/assets/camera.png" /></view
+      ><view class="entry-title">拍照录入</view
+      ><view class="entry-caption">课本变清单</view>
+    </button>
+    <button
+      class="entry-card"
+      hover-class="tap-feedback"
+      data-source="album"
+      bindtap="newDraft"
+      loading="{{creating === 'album'}}"
+      disabled="{{!!creating || loading || error}}"
+    >
+      <view class="entry-icon album-tint"
+        ><image src="/assets/album.png" /></view
+      ><view class="entry-title">相册选图</view
+      ><view class="entry-caption">用已有的照片</view>
+    </button>
+    <button
+      class="entry-card"
+      hover-class="tap-feedback"
+      data-source="text"
+      bindtap="newDraft"
+      loading="{{creating === 'text'}}"
+      disabled="{{!!creating || loading || error}}"
+    >
+      <view class="entry-icon pen-tint"><image src="/assets/pen.png" /></view
+      ><view class="entry-title">手动输入</view
+      ><view class="entry-caption">想练什么都行</view>
+    </button>
+  </view>
+  <view class="section-heading between"
+    ><view class="section-title">我的练习本</view
+    ><button
+      class="plain mini section-link"
+      hover-class="tap-feedback"
+      bindtap="library"
+    >
+      查看全部 <text>↗</text>
+    </button></view
+  >
+  <view class="practice-grid">
+    <button
+      class="practice-tile history-tile"
+      hover-class="tap-feedback"
+      bindtap="library"
+    >
+      <view class="tile-top"
+        ><text>听写记录</text><text class="tile-arrow">↗</text></view
+      ><view class="tile-count"
+        >{{loading || error || !loggedIn ? '—' : historyCount}}<text
+          >份</text
+        ></view
+      ><view class="tile-caption">每一次，都有迹可循</view
+      ><view class="mini-book" aria-hidden="true"
+        ><view></view><view></view><view></view
+      ></view>
+    </button>
+    <button
+      class="practice-tile wrong-tile"
+      hover-class="tap-feedback"
+      bindtap="wrongLibrary"
+    >
+      <view class="tile-top"
+        ><text>错词复习</text><text class="tile-arrow">↗</text></view
+      ><view class="tile-count"
+        >{{loading || error || !loggedIn ? '—' : wrongCount}}<text
+          >个</text
+        ></view
+      ><view class="tile-caption">再练练，就记住了</view
+      ><view class="review-star" aria-hidden="true">✦</view>
+    </button>
+  </view>
+  <button
+    wx:if="{{active && hasDraft && !loading && !error}}"
+    class="draft-strip"
+    hover-class="tap-feedback"
+    bindtap="continueDraft"
+  >
+    <view class="draft-dot"></view
+    ><text class="grow">还有 {{draftCount}} 项草稿，等你整理</text
+    ><text>继续编辑 →</text>
+  </button>
+  <button
+    wx:if="{{!loggedIn}}"
+    class="login-strip"
+    hover-class="tap-feedback"
+    bindtap="profile"
+  >
+    <view class="grow"
+      ><view>登录，让每次练习都留下来</view
+      ><view class="small muted">清单、进度和错词，归在同一个账号</view></view
+    ><text>↗</text>
+  </button>
+  <view class="home-signoff"
+    >慢慢来，每一次听见都算数。<view
+      >所有功能免费 · 学习内容仅自己可见</view
+    ></view
+  >
 </view>

@@ -1,10 +1,79 @@
-<view class="page privacy-page"><view class="eyebrow">你的学习记录，由你管理</view><view class="page-title">隐私与数据使用</view>
-  <view class="muted version">版本：{{config.privacyVersion || '2026-10-04'}}</view><view wx:if="{{error}}" class="note error">{{error}}</view>
-  <view class="card"><view class="section-title">谁在运营这项服务</view><view>运营者：{{config.operator || '服务开放前由运营者填写'}}</view><view class="preserve">联系方式：{{config.contact || '服务开放前由运营者填写'}}</view></view>
-  <view class="card"><view class="section-title">登录与学习记录</view><view>微信登录用于识别你的账号。服务器保存微信标识的摘要，用来区分不同用户；登录令牌用于验证请求。</view><view>你编辑的清单、识别文字、听写进度、核查结果和错词会存放在你的账号下，并在本机缓存，以便继续练习和跨设备同步。</view></view>
-  <view class="card"><view class="section-title">照片与语音怎样使用</view><view>只有你主动选择照片、点击识别或开始录音时，相关内容才会提交给服务器。课本照片用于识别文字，答案照片用于手写核查，短录音用于转写提问。朗读文字会交给配置的语音服务生成声音。</view><view>AI 服务处理方：{{config.processors || '尚未填写，服务开放前请联系运营者确认'}}</view><view>当前照片和录音交由腾讯云识别；识别文字、清单及必要的提问上下文交由 DeepSeek 整理和讲解；待朗读文字交由 Microsoft Edge 在线语音生成声音。不愿使用相应服务时，可以使用手动输入与按钮操作。</view><view>你选择的图片和原始录音不写入学习记录数据库，处理期间短暂存在于请求、任务内存或临时缓冲中。任务结果在取回后释放，未取回的完成结果最多保留 5 分钟。生成的朗读音频另有最多 64 MiB 的服务器内存缓存，按容量淘汰，服务重启时清除。录音和照片的本机临时文件由微信管理，应用生成的朗读文件播放结束或停止后删除。</view><view>第三方服务的处理与留存规则以微信隐私指引所附补充文档及服务方政策为准。</view></view>
-  <view class="card"><view class="section-title">保存、同步与删除</view><view>学习记录保留到你主动删除。你可以在练习本删除历史、移除错词，或在“我的”注销账号并删除全部学习记录与登录会话。</view><view>退出登录会清除本机账号缓存。尚未同步的修改会丢失，请先同步。为防止反复注册绕过额度，账号删除后仍短暂保留按日汇总的标识摘要及用量，仅保留当天及前一天的用量摘要，过期数据会在服务清理时删除。</view><view>运营者如启用备份，应在微信隐私保护指引中说明备份保留和删除周期。可通过上方联系方式申请访问、更正或删除数据。</view></view>
-  <view class="card"><view class="section-title">连接与安全日志</view><view>服务器处理网络访问所需的 IP 地址、访问时间、请求路径及响应状态，用于连接、安全防护、限流和故障排查。访问日志每日轮换，最多保留 14 份历史日志文件，访问限于运营管理。</view></view>
-  <view class="card"><view class="section-title">儿童使用与权限选择</view><view>未满 14 周岁的用户，请在监护人阅读并明示同意本说明后使用。照片和录音中请尽量只保留学习内容。</view><view>你可以拒绝相机、相册或录音授权，继续使用手动输入与按钮操作；也可以在微信设置中撤销权限。</view><view>AI 生成的练习、讲解和识别结果可能有误，请对照课本核查，批改建议需要你确认后才进入错词本。</view></view>
-  <button class="secondary" bindtap="contract">查看微信《用户隐私保护指引》</button>
+<view class="page privacy-page"
+  ><view class="eyebrow">你的学习记录，由你管理</view
+  ><view class="page-title">隐私与数据使用</view>
+  <view class="muted version"
+    >版本：{{config.privacyVersion || '2026-10-04'}}</view
+  ><view wx:if="{{error}}" class="note error">{{error}}</view>
+  <view class="card"
+    ><view class="section-title">谁在运营这项服务</view
+    ><view>运营者：{{config.operator || '服务开放前由运营者填写'}}</view
+    ><view class="preserve"
+      >联系方式：{{config.contact || '服务开放前由运营者填写'}}</view
+    ></view
+  >
+  <view class="card"
+    ><view class="section-title">登录与学习记录</view
+    ><view
+      >微信登录用于识别你的账号。服务器保存微信标识的摘要，用来区分不同用户；登录令牌用于验证请求。</view
+    ><view
+      >你编辑的清单、识别文字、听写进度、核查结果和错词会存放在你的账号下，并在本机缓存，以便继续练习和跨设备同步。</view
+    ></view
+  >
+  <view class="card"
+    ><view class="section-title">照片与语音怎样使用</view
+    ><view
+      >只有你主动选择照片、点击识别或开始录音时，相关内容才会提交给服务器。课本照片用于识别文字，答案照片用于手写核查，短录音用于转写提问。朗读文字会交给配置的语音服务生成声音。</view
+    ><view
+      >AI 服务处理方：{{config.processors ||
+      '尚未填写，服务开放前请联系运营者确认'}}</view
+    ><view
+      >当前照片和录音交由腾讯云识别；识别文字、清单及必要的提问上下文交由
+      DeepSeek 整理和讲解；待朗读文字交由 Microsoft Edge
+      在线语音生成声音。不愿使用相应服务时，可以使用手动输入与按钮操作。</view
+    ><view
+      >你选择的图片和原始录音不写入学习记录数据库，处理期间短暂存在于请求、任务内存或临时缓冲中。任务结果在取回后释放，未取回的完成结果最多保留
+      5 分钟。生成的朗读音频另有最多 64 MiB
+      的服务器内存缓存，按容量淘汰，服务重启时清除。录音和照片的本机临时文件由微信管理，应用生成的朗读文件播放结束或停止后删除。</view
+    ><view
+      >第三方服务的处理与留存规则以微信隐私指引所附补充文档及服务方政策为准。</view
+    ></view
+  >
+  <view class="card"
+    ><view class="section-title">保存、同步与删除</view
+    ><view
+      >学习记录保留到你主动删除。你可以在练习本删除历史、移除错词，或在“我的”注销账号并删除全部学习记录与登录会话。</view
+    ><view
+      >退出登录会清除本机账号缓存。尚未同步的修改会丢失，请先同步。为防止反复注册绕过额度，账号删除后仍短暂保留按日汇总的标识摘要及用量，仅保留当天及前一天的用量摘要，过期数据会在服务清理时删除。</view
+    ><view
+      >运营者如启用备份，应在微信隐私保护指引中说明备份保留和删除周期。可通过上方联系方式申请访问、更正或删除数据。</view
+    ></view
+  >
+  <view class="card"
+    ><view class="section-title">连接与安全日志</view
+    ><view
+      >服务器处理网络访问所需的 IP
+      地址、访问时间、请求路径及响应状态，用于连接、安全防护、限流和故障排查。访问日志每日轮换，最多保留
+      14 份历史日志文件，访问限于运营管理。</view
+    ></view
+  >
+  <view class="card"
+    ><view class="section-title">儿童使用与权限选择</view
+    ><view
+      >未满 14
+      周岁的用户，请在监护人阅读并明示同意本说明后使用。照片和录音中请尽量只保留学习内容。</view
+    ><view
+      >你可以拒绝相机、相册或录音授权，继续使用手动输入与按钮操作；也可以在微信设置中撤销权限。</view
+    ><view
+      >AI
+      生成的练习、讲解和识别结果可能有误，请对照课本核查，批改建议需要你确认后才进入错词本。</view
+    ></view
+  >
+  <button
+    hover-class="tap-feedback"
+    hover-stay-time="80"
+    class="secondary"
+    bindtap="contract"
+  >
+    查看微信《用户隐私保护指引》
+  </button>
 </view>

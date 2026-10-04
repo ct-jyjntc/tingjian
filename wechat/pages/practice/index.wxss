@@ -1,1 +1,255 @@
-.progress-label { margin-bottom: 16rpx; }.listen-card { margin-top: 34rpx; padding: 48rpx 30rpx 38rpx; text-align: center; background: #eff1fb; border-radius: 34rpx; min-height: 390rpx; }.listening-symbol { height: 112rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; margin: 8rpx 0 30rpx; }.listening-symbol view { width: 11rpx; height: 28rpx; border-radius: 10rpx; background: #9aa8d4; }.listening-symbol view:nth-child(2), .listening-symbol view:nth-child(4) { height: 56rpx; }.listening-symbol view:nth-child(3) { height: 82rpx; }.is-playing .listening-symbol view { animation: listening 1s ease-in-out infinite alternate; }.is-playing .listening-symbol view:nth-child(2) { animation-delay: -.4s; }.is-playing .listening-symbol view:nth-child(3) { animation-delay: -.2s; }.is-playing .listening-symbol view:nth-child(4) { animation-delay: -.6s; }@keyframes listening { from { transform: scaleY(.55); } to { transform: scaleY(1.1); } }.listen-title { font-size: 40rpx; font-weight: 650; }.listen-subtitle { color: #8b93b0; margin-top: 14rpx; font-size: 24rpx; }.revealed-answer { font-size: 40rpx; padding: 24rpx 12rpx 8rpx; color: #5368b9; word-break: break-word; }.primary-controls { margin-top: 26rpx; }.quick-controls { display: flex; gap: 12rpx; margin-top: 18rpx; }.quick-controls button { flex: 1; padding: 20rpx 6rpx; font-size: 24rpx; font-weight: 500; }.hint-actions { display: flex; justify-content: center; margin-top: 12rpx; }.conversation { margin-top: 32rpx; padding: 28rpx; }.narration-setting { margin-top: 18rpx; padding-bottom: 12rpx; border-bottom: 1rpx solid #eeeef4; }.turn { padding: 24rpx; border-radius: 20rpx; margin-top: 24rpx; font-size: 27rpx; }.turn.user { margin-left: 45rpx; background: #eef0fa; }.turn.assistant { margin-right: 14rpx; background: #f6f5f1; }.turn-role { font-size: 20rpx; color: #9095a8; margin-bottom: 12rpx; }.explanation-title { font-weight: 650; font-size: 31rpx; margin-bottom: 12rpx; }.explanation-section { margin-top: 24rpx; padding-top: 18rpx; border-top: 1rpx solid #e7e5de; }.section-label { color: #7f8864; font-weight: 600; margin-bottom: 8rpx; }.speak-button { padding-left: 0; padding-bottom: 0; text-align: left; }.feedback { font-size: 24rpx; color: #8a89a5; margin-top: 22rpx; }.composer { margin-top: 26rpx; }.composer input { height: 80rpx; font-size: 25rpx; }.voice-button { font-size: 25rpx; font-weight: 500; margin-top: 18rpx; background: #f1f2f7; color: #727eaa; }.voice-button.recording { background: #6376b9; color: white; }.ai-note { margin-top: 20rpx; text-align: center; font-size: 20rpx; }
+.progress-label {
+  margin-bottom: 14rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+.listen-card {
+  margin-top: 28rpx;
+  text-align: center;
+}
+.listening-symbol {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  margin: 24rpx 0;
+}
+.listening-symbol view {
+  width: 10rpx;
+  height: 24rpx;
+  border-radius: 8rpx;
+  background: #30392d;
+}
+.listening-symbol view:nth-child(2),
+.listening-symbol view:nth-child(4) {
+  height: 48rpx;
+}
+.listening-symbol view:nth-child(3) {
+  height: 72rpx;
+}
+.is-playing .listening-symbol view {
+  animation: listening 1s ease-in-out infinite alternate;
+}
+.is-playing .listening-symbol view:nth-child(2) {
+  animation-delay: -0.4s;
+}
+.is-playing .listening-symbol view:nth-child(3) {
+  animation-delay: -0.2s;
+}
+.is-playing .listening-symbol view:nth-child(4) {
+  animation-delay: -0.6s;
+}
+@keyframes listening {
+  from {
+    transform: scaleY(0.55);
+  }
+  to {
+    transform: scaleY(1.1);
+  }
+}
+.listen-subtitle {
+  color: #65695e;
+  font-size: 26rpx;
+}
+.revealed-answer {
+  font-size: 38rpx;
+  padding: 24rpx 12rpx 8rpx;
+  color: #252b25;
+  overflow-wrap: anywhere;
+}
+.primary-controls {
+  margin-top: 24rpx;
+}
+.primary-controls button {
+  padding: 28rpx 20rpx;
+  font-size: 31rpx;
+}
+.quick-controls {
+  display: grid;
+  margin-top: 16rpx;
+}
+.quick-controls button {
+  min-width: 0;
+  font-weight: 500;
+  background: #fff;
+  border: 1rpx solid #e8e8de;
+}
+.hint-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 12rpx;
+}
+.conversation {
+  margin-top: 28rpx;
+}
+.narration-setting {
+  margin-top: 18rpx;
+  padding-bottom: 14rpx;
+  border-bottom: 1rpx solid #e8e8de;
+}
+.turn {
+  padding: 22rpx;
+  border-radius: 18rpx;
+  margin-top: 22rpx;
+  font-size: 28rpx;
+}
+.turn.user {
+  margin-left: 32rpx;
+  background: #f6f3df;
+}
+.turn.assistant {
+  background: #fafaf5;
+}
+.turn-role {
+  color: #73756a;
+  font-size: 23rpx;
+  margin-bottom: 10rpx;
+}
+.explanation-title {
+  font-weight: 650;
+  font-size: 31rpx;
+  margin-bottom: 12rpx;
+}
+.explanation-section {
+  margin-top: 22rpx;
+  padding-top: 18rpx;
+  border-top: 1rpx solid #e5e6dc;
+}
+.section-label {
+  color: #28694f;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+.speak-button {
+  padding-left: 0;
+  text-align: left;
+}
+.feedback,
+.assistant-loading {
+  font-size: 25rpx;
+  color: #65695e;
+  margin-top: 22rpx;
+}
+.composer {
+  margin-top: 24rpx;
+  gap: 12rpx;
+}
+.composer input {
+  width: 0;
+  font-size: 26rpx;
+}
+.composer button {
+  padding-left: 18rpx;
+  padding-right: 18rpx;
+}
+.voice-button {
+  font-size: 27rpx;
+  font-weight: 500;
+  margin-top: 16rpx;
+  background: #f1f1e8;
+  color: #252b25;
+}
+.voice-button.recording {
+  background: #252b25;
+  color: #fff;
+}
+.ai-note {
+  margin-top: 20rpx;
+  font-size: 23rpx;
+}
+.return-button {
+  margin-top: 24rpx;
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-playing .listening-symbol view {
+    animation: none;
+  }
+}
+
+.listen-card {
+  background: #e9eddf;
+  border: 0;
+  border-radius: 36rpx;
+  padding: 28rpx 28rpx 34rpx;
+  overflow: hidden;
+}
+.listen-card .eyebrow {
+  letter-spacing: 1rpx;
+  color: #647152;
+}
+.record-player {
+  position: relative;
+  width: 268rpx;
+  height: 268rpx;
+  margin: 24rpx auto 26rpx;
+  border-radius: 50%;
+  background: #30392d;
+  box-shadow: 0 12rpx 28rpx #394d2420;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.record-ring {
+  position: absolute;
+  border: 2rpx solid #58604c;
+  border-radius: 50%;
+  opacity: 0.6;
+}
+.ring-one {
+  inset: 16rpx;
+}
+.ring-two {
+  inset: 30rpx;
+}
+.ring-three {
+  inset: 44rpx;
+}
+.record-player .listening-symbol {
+  position: relative;
+  background: #f8dc70;
+  width: 144rpx;
+  height: 144rpx;
+  margin: 0;
+  border-radius: 50%;
+  gap: 8rpx;
+}
+.record-player .listening-symbol view {
+  width: 7rpx;
+  background: #30392d;
+  height: 20rpx;
+}
+.record-player .listening-symbol view:nth-child(2),
+.record-player .listening-symbol view:nth-child(4) {
+  height: 38rpx;
+}
+.record-player .listening-symbol view:nth-child(3) {
+  height: 54rpx;
+}
+.listen-title {
+  font-size: 45rpx;
+  font-weight: 700;
+}
+.listen-subtitle {
+  margin-top: 10rpx;
+}
+.primary-controls button {
+  border-radius: 60rpx;
+  background: #252b25;
+  color: #fbe99d;
+}
+.quick-controls {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10rpx;
+}
+.quick-controls button {
+  padding: 22rpx 4rpx;
+  border-radius: 22rpx;
+  font-size: 24rpx;
+}
+@media (max-width: 360px) {
+  .quick-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+}

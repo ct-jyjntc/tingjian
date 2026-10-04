@@ -105,13 +105,32 @@ const icons = {
   home: '<path d="M7 22 24 7l17 15M11 20v22h10V30h6v12h10V20"/>',
   book: '<path d="M6 9c8-2 13 0 18 4 5-4 10-6 18-4v31c-8-2-13 0-18 4-5-4-10-6-18-4V9Zm18 4v31"/>',
   user: '<circle cx="24" cy="15" r="8"/><path d="M8 42c0-11 6-17 16-17s16 6 16 17"/>',
+  camera:
+    '<path d="M6 14h9l4-6h10l4 6h9v26H6Z"/><circle cx="24" cy="26" r="8"/>',
+  album:
+    '<rect x="6" y="6" width="36" height="36" rx="6"/><circle cx="16" cy="16" r="3"/><path d="m7 34 11-11 8 8 6-6 10 9"/>',
+  pen: '<path d="m8 32 23-23c5-5 13 3 8 8L16 40 6 42Z"/><path d="m28 12 8 8M8 32l8 8"/>',
+  shield:
+    '<path d="m24 5 16 6v13c0 11-16 20-16 20S8 35 8 24V11Z"/><path d="m16 24 6 6 11-12"/>',
+  chat: '<path d="M7 8h34v26H20L8 43V8Z"/><path d="M16 18h16M16 25h10"/>',
+  mail: '<rect x="5" y="10" width="38" height="28" rx="5"/><path d="m7 13 17 13 17-13"/>',
 };
 await mkdir(path.join(output, "assets"), { recursive: true });
+for (const file of files.filter((file) => file.endsWith(".svg"))) {
+  const destination = path.join(
+    output,
+    path.relative(source, file).replace(/\.svg$/, ".png"),
+  );
+  await mkdir(path.dirname(destination), { recursive: true });
+  await sharp(file).png().toFile(destination);
+}
 for (const [name, shapes] of Object.entries(icons))
   for (const [suffix, color] of [
-    ["", "#9699aa"],
-    ["-active", "#5368b9"],
+    ["", "#73756a"],
+    ["-active", "#252b25"],
   ]) {
+    if (["album", "pen"].includes(name) && suffix) continue;
+    if (["shield", "chat", "mail"].includes(name) && !suffix) continue;
     await sharp(
       Buffer.from(
         `<svg xmlns="http://www.w3.org/2000/svg" width="81" height="81" viewBox="0 0 48 48"><g fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${shapes}</g></svg>`,

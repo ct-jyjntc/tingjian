@@ -22,7 +22,8 @@ import {
 } from "../../utils/storage";
 import { choosePhoto, cropPhoto, photoData } from "../../utils/media";
 import { AudioPlayer } from "../../utils/audio";
-import { TaskScope } from "../../utils/task";
+import { TaskScope, Cancelled } from "../../utils/task";
+import { formFocus } from "../../behaviors/form";
 import {
   confirm,
   notify,
@@ -61,6 +62,7 @@ const viewItems = (items: Item[]): ItemView[] =>
     number: index + 1,
   }));
 Page({
+  behaviors: [formFocus],
   data: {
     loading: true,
     error: "",
@@ -93,6 +95,14 @@ Page({
     speedPercent: 100,
     repeatIndex: 0,
     issueCount: 0,
+    showImport: true,
+    inputMode: "text",
+    showAssistant: false,
+    showSettings: false,
+    starting: false,
+    previewing: false,
+    taskKind: "",
+    taskError: "",
   },
   draft: { title: "新的听写", items: [], materials: [] } as DraftDocument,
   originalPhoto: "",
@@ -120,6 +130,11 @@ Page({
       if (!service.voices.some((v) => v.id === preferences.voice))
         preferences.voice = service.voices[0].id;
       this.setData({
+        showImport: !this.draft.items.length || Boolean(options.source),
+        inputMode:
+          options.source === "camera" || options.source === "album"
+            ? "photo"
+            : "text",
         settings: preferences,
         voices: service.voices,
         voiceIndex: service.voices.findIndex((v) => v.id === preferences.voice),
@@ -182,11 +197,24 @@ Page({
     this.render();
   },
   titleInput(event: InputEvent) {
+    this.setData({ focusKey: "" });
     this.draft.title = event.detail.value;
     this.changed();
   },
   textInput(event: InputEvent) {
     this.setData({ inputText: event.detail.value });
+  },
+  togglePanel(event: TapEvent) {
+    const key = event.currentTarget.dataset.panel as
+      "showImport" | "showAssistant" | "showSettings";
+    if (!["showImport", "showAssistant", "showSettings"].includes(key)) return;
+    this.setData({ [key]: !this.data[key] });
+  },
+  inputMode(event: TapEvent) {
+    this.setData({ inputMode: String(event.currentTarget.dataset.mode) });
+  },
+  retryLoad() {
+    wx.redirectTo({ url: "/pages/editor/index" });
   },
   instructionInput(event: InputEvent) {
     this.setData({ instruction: event.detail.value });
@@ -263,14 +291,23 @@ Page({
     if (this.scope) {
       this.scope.cancel();
       this.scope = null;
-      this.setData({ busy: false });
+      this.setData({
+        busy: false,
+        taskKind: "",
+        message: "已取消任务，清单已保留。",
+      });
     }
   },
   async recognize() {
     if (!this.data.photo || this.data.busy) return;
     this.cancel();
     const scope = (this.scope = new TaskScope());
-    this.setData({ busy: true, message: "正在识别课本，保留文字和行列位置…" });
+    this.setData({
+      busy: true,
+      taskKind: "ocr",
+      taskError: "",
+      message: "正在识别课本，保留文字和行列位置…",
+    });
     try {
       const image = await photoData(this.data.photo);
       scope.check();
@@ -316,12 +353,18 @@ Page({
         ].join("\n"),
       });
     } catch (error) {
+      if (!(error instanceof Cancelled))
+        this.setData({
+          taskError:
+            error instanceof Error ? error.message : "任务未完成，请重试",
+          message: "",
+        });
       showError(error);
       this.setData({ message: "识别未完成，原清单保留。可以调整图片后重试。" });
     } finally {
       if (this.scope === scope) {
         this.scope = null;
-        this.setData({ busy: false });
+        this.setData({ busy: false, taskKind: "" });
       }
     }
   },
@@ -337,6 +380,7 @@ Page({
     });
   },
   field(event: InputEvent) {
+    this.setData({ focusKey: "" });
     const { id, field } = event.currentTarget.dataset;
     if (!["spoken", "answer", "pronunciation"].includes(field)) return;
     const item = this.draft.items.find((item) => item.id === id);
@@ -409,17 +453,26 @@ Page({
   propose(result: Proposal) {
     this.result = result;
     this.proposalBase = JSON.stringify(this.draft.items);
-    this.setData({
-      proposalMessage: result.message,
-      proposal: viewItems(result.proposal || []),
-      trace: result.trace || [],
-    });
+    this.setData(
+      {
+        showAssistant: true,
+        proposalMessage: result.message,
+        proposal: viewItems(result.proposal || []),
+        trace: result.trace || [],
+      },
+      () => wx.pageScrollTo({ selector: "#assistant-card", duration: 200 }),
+    );
   },
   async ask() {
     if (!this.data.instruction.trim() || this.data.busy) return;
     const base = JSON.stringify(this.draft.items);
     const scope = (this.scope = new TaskScope());
-    this.setData({ busy: true, message: "学习助手正在查看材料、准备清单…" });
+    this.setData({
+      busy: true,
+      taskKind: "agent",
+      taskError: "",
+      message: "学习助手正在查看材料、准备清单…",
+    });
     try {
       const result = await ai<Proposal>(
         "agent",
@@ -437,11 +490,17 @@ Page({
       this.proposalBase = base;
       this.setData({ message: "助手已完成，请查看下面的草稿。" });
     } catch (error) {
+      if (!(error instanceof Cancelled))
+        this.setData({
+          taskError:
+            error instanceof Error ? error.message : "任务未完成，请重试",
+          message: "",
+        });
       showError(error);
     } finally {
       if (this.scope === scope) {
         this.scope = null;
-        this.setData({ busy: false });
+        this.setData({ busy: false, taskKind: "" });
       }
     }
   },
@@ -528,7 +587,9 @@ Page({
     this.setData({ "settings.showAnswer": event.detail.value });
   },
   async preview() {
-    if (!this.draft.items.length || this.data.busy) return;
+    if (!this.draft.items.length || this.data.busy || this.data.previewing)
+      return;
+    this.setData({ previewing: true });
     try {
       await this.player?.playItem(
         this.draft.items[0],
@@ -537,6 +598,8 @@ Page({
       );
     } catch (error) {
       showError(error);
+    } finally {
+      this.setData({ previewing: false });
     }
   },
   async start() {
@@ -553,24 +616,20 @@ Page({
       notify("请先补全朗读内容和答案，并核查有提示的项目");
       return;
     }
-    const existing = await readDocument<Session>("session").catch((error) => {
-      showError(error);
-      return undefined;
-    });
-    if (existing === undefined) return;
-    if (
-      existing &&
-      existing.phase !== "completed" &&
-      !(await confirm(
-        "开始新的听写？",
-        "当前未完成的听写进度会被这份新练习替换。",
-        "开始新练习",
-      ))
-    )
-      return;
-    this.player?.stop();
-    this.setData({ busy: true });
+    this.setData({ busy: true, starting: true });
     try {
+      const existing = await readDocument<Session>("session");
+      if (
+        existing &&
+        existing.phase !== "completed" &&
+        !(await confirm(
+          "开始新的听写？",
+          "当前未完成的听写进度会被这份新练习替换。",
+          "开始新练习",
+        ))
+      )
+        return;
+      this.player?.stop();
       const session: Session = {
         id: recordId(),
         items:
@@ -590,7 +649,7 @@ Page({
     } catch (error) {
       showError(error);
     } finally {
-      this.setData({ busy: false });
+      this.setData({ busy: false, starting: false });
     }
   },
 });

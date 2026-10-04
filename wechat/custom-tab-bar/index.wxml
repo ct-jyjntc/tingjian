@@ -1,0 +1,22 @@
+<view class="nav-wrap">
+  <view class="tab-bar" role="tablist">
+    <button
+      wx:for="{{tabs}}"
+      wx:key="path"
+      class="tab {{selected === index ? 'selected' : ''}}"
+      data-index="{{index}}"
+      bindtap="switchTab"
+      hover-class="tab-pressed"
+      hover-stay-time="80"
+      role="tab"
+      aria-label="{{item.label}}"
+      aria-selected="{{selected === index}}"
+    >
+      <image
+        src="/assets/{{item.icon}}{{selected === index ? '-active' : ''}}.png"
+        mode="aspectFit"
+        aria-hidden="true"
+      /><text>{{item.label}}</text>
+    </button>
+  </view>
+</view>

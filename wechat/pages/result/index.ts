@@ -13,6 +13,7 @@ import {
 } from "../../utils/storage";
 import { choosePhoto, photoData } from "../../utils/media";
 import { TaskScope } from "../../utils/task";
+import { formFocus } from "../../behaviors/form";
 import {
   notify,
   showError,
@@ -29,6 +30,7 @@ type ResultView = Grading & {
   spoken: string;
 };
 Page({
+  behaviors: [formFocus],
   data: {
     loading: true,
     error: "",
@@ -45,6 +47,9 @@ Page({
     message: "",
     caseSensitive: false,
     punctuation: false,
+    showRules: false,
+    recognizing: false,
+    saving: false,
   },
   record: null as HistoryDocument | null,
   key: "",
@@ -123,11 +128,19 @@ Page({
   preview() {
     if (this.data.photo) wx.previewImage({ urls: [this.data.photo] });
   },
+  toggleRules() {
+    this.setData({ showRules: !this.data.showRules });
+  },
+  retryLoad() {
+    wx.redirectTo({
+      url: `/pages/result/index?id=${encodeURIComponent(this.key.slice(8))}`,
+    });
+  },
   cancel() {
     if (this.scope) {
       this.scope.cancel();
       this.scope = null;
-      this.setData({ busy: false });
+      this.setData({ busy: false, recognizing: false });
     }
   },
   async recognize() {
@@ -142,7 +155,7 @@ Page({
     )
       return;
     const scope = (this.scope = new TaskScope());
-    this.setData({ busy: true });
+    this.setData({ busy: true, recognizing: true });
     try {
       const image = await photoData(this.data.photo);
       scope.check();
@@ -201,7 +214,7 @@ Page({
     } finally {
       if (this.scope === scope) {
         this.scope = null;
-        this.setData({ busy: false });
+        this.setData({ busy: false, recognizing: false });
       }
     }
   },
@@ -261,7 +274,7 @@ Page({
   },
   async save() {
     if (!this.record || this.data.busy) return;
-    this.setData({ busy: true });
+    this.setData({ busy: true, saving: true });
     try {
       const wrong = (await readDocument<Item[]>("wrong")) || [];
       const sessionIds = new Set(
@@ -283,7 +296,7 @@ Page({
     } catch (error) {
       showError(error);
     } finally {
-      this.setData({ busy: false });
+      this.setData({ busy: false, saving: false });
     }
   },
   async reloadCloud() {

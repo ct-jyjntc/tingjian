@@ -2,9 +2,30 @@
   <view class="privacy-sheet">
     <view class="eyebrow">你的选择，由你决定</view>
     <view class="section-title">使用照片与语音前</view>
-    <view class="muted">照片仅用于识别课本文字或核对答案；录音仅用于转写你的提问。选择的内容会发送到服务端及对应 AI 服务。</view>
-    <view class="privacy-link" bindtap="openContract">阅读《用户隐私保护指引》</view>
-    <button id="privacy-agree" class="primary" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="agreePrivacy">同意并继续</button>
-    <button class="plain" bindtap="rejectPrivacy">暂不同意</button>
+    <view class="muted"
+      >照片仅用于识别课本文字或核对答案；录音仅用于转写你的提问。选择的内容会发送到服务端及对应
+      AI 服务。</view
+    >
+    <view class="privacy-link" bindtap="openContract"
+      >阅读《用户隐私保护指引》</view
+    >
+    <button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      id="privacy-agree"
+      class="primary"
+      open-type="agreePrivacyAuthorization"
+      bindagreeprivacyauthorization="agreePrivacy"
+    >
+      同意并继续
+    </button>
+    <button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      class="plain"
+      bindtap="rejectPrivacy"
+    >
+      暂不同意
+    </button>
   </view>
 </view>

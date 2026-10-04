@@ -1,1 +1,13 @@
-.version { margin-top: 20rpx; }.privacy-page .card > view:not(.section-title) { margin-top: 18rpx; color: #818494; font-size: 26rpx; line-height: 1.85; }.privacy-page button { margin-top: 28rpx; }
+.version {
+  margin-top: 18rpx;
+}
+.privacy-page .card > view:not(.section-title) {
+  margin-top: 18rpx;
+  color: #65695e;
+  font-size: 27rpx;
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+}
+.privacy-page button {
+  margin-top: 28rpx;
+}

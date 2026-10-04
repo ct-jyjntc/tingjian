@@ -1,9 +1,4 @@
-import {
-  defaults,
-  type DraftDocument,
-  type Session,
-  type Item,
-} from "../../shared";
+import { type DraftDocument, type Session, type Item } from "../../shared";
 import { signedIn } from "../../utils/api";
 import { readDocument, saveDocument, listHistory } from "../../utils/storage";
 import { confirm, showError, requireLogin } from "../../utils/ui";
@@ -18,8 +13,10 @@ Page({
     historyCount: 0,
     wrongCount: 0,
     error: "",
+    creating: "",
   },
   onShow() {
+    this.getTabBar?.()?.setData({ selected: 0 });
     void this.refresh();
   },
   async onPullDownRefresh() {
@@ -64,17 +61,25 @@ Page({
     }
   },
   async newDraft(event: WechatMiniprogram.BaseEvent) {
-    if (!requireLogin()) return;
     if (
-      this.data.hasDraft &&
-      !(await confirm(
-        "开始一份新清单？",
-        "会替换当前正在编辑的草稿，已保存的听写历史不受影响。",
-        "新建清单",
-      ))
+      this.data.creating ||
+      this.data.loading ||
+      this.data.error ||
+      !requireLogin()
     )
       return;
+    const source = String(event.currentTarget.dataset.source || "text");
+    this.setData({ creating: source });
     try {
+      if (
+        this.data.hasDraft &&
+        !(await confirm(
+          "开始一份新清单？",
+          "会替换当前正在编辑的草稿，已保存的听写历史不受影响。",
+          "新建清单",
+        ))
+      )
+        return;
       // Read first so a new document never silently overwrites another device.
       await readDocument("draft");
       await saveDocument("draft", {
@@ -83,10 +88,12 @@ Page({
         materials: [],
       });
       wx.navigateTo({
-        url: `/pages/editor/index?source=${event.currentTarget.dataset.source || "text"}`,
+        url: `/pages/editor/index?source=${source}`,
       });
     } catch (error) {
       showError(error);
+    } finally {
+      this.setData({ creating: "" });
     }
   },
   continueDraft() {
@@ -97,6 +104,15 @@ Page({
   },
   library() {
     wx.switchTab({ url: "/pages/library/index" });
+  },
+  wrongLibrary() {
+    wx.switchTab({
+      url: "/pages/library/index",
+      success: () => {
+        const pages = getCurrentPages();
+        pages[pages.length - 1]?.setData({ tab: "wrong" });
+      },
+    });
   },
   profile() {
     wx.switchTab({ url: "/pages/profile/index" });

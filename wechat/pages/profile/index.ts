@@ -13,6 +13,8 @@ Page({
     loggedIn: false,
     agreed: false,
     busy: false,
+    loading: true,
+    showQuota: false,
     error: "",
     userLabel: "",
     remaining: 0,
@@ -28,12 +30,16 @@ Page({
     } as PublicConfig,
   },
   onShow() {
+    this.getTabBar?.()?.setData({ selected: 2 });
     void this.refresh();
   },
   async refresh() {
+    if (this.refreshing) return;
+    this.refreshing = true;
     const identity = auth();
     this.setData({
       loggedIn: Boolean(identity),
+      loading: true,
       userLabel: identity ? `学习账号 · ${identity.user.id.slice(-6)}` : "",
       error: "",
       remaining: 0,
@@ -57,7 +63,14 @@ Page({
       this.setData({
         error: error instanceof Error ? error.message : "暂时无法读取账号",
       });
+    } finally {
+      this.refreshing = false;
+      this.setData({ loading: false });
     }
+  },
+  refreshing: false,
+  toggleQuota() {
+    this.setData({ showQuota: !this.data.showQuota });
   },
   agree(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) {
     this.setData({ agreed: event.detail.value.includes("agree") });

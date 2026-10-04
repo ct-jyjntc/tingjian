@@ -1,1 +1,4 @@
-{ "navigationBarTitleText": "听见 · 每天一点进步", "enablePullDownRefresh": true }
+{
+  "navigationBarTitleText": "听见",
+  "enablePullDownRefresh": true
+}

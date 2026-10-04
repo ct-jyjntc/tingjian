@@ -1,19 +1,192 @@
-<view class="page">
-  <view class="eyebrow">在自己的节奏里，慢慢变好</view><view class="page-title">我的学习空间</view>
-  <view class="identity-card"><view class="avatar">听</view><view class="grow"><view class="identity-title">{{loggedIn ? '欢迎回来' : '你好，很高兴听见你'}}</view><view class="small muted">{{loggedIn ? userLabel : '用微信登录，开启一份新的练习'}}</view></view></view>
-  <view wx:if="{{error}}" class="note error">{{error}}</view>
+<view class="page tab-page profile">
+  <view class="page-header"
+    ><view class="eyebrow">听见 · 个人学习空间</view
+    ><view class="page-title">我的学习空间</view></view
+  >
+  <view class="identity-card"
+    ><view class="avatar" aria-hidden="true"
+      ><view class="avatar-wave"
+        ><view></view><view></view><view></view><view></view></view></view
+    ><view class="grow"
+      ><view class="identity-title"
+        >{{loggedIn ? '欢迎回来' : '你好，欢迎使用听见'}}</view
+      ><view class="small muted"
+        >{{loggedIn ? userLabel : '用微信登录，开启一份新的练习'}}</view
+      ></view
+    ></view
+  >
+  <view wx:if="{{error}}" class="note error"
+    ><view>{{error}}</view
+    ><button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      class="plain mini"
+      bindtap="refresh"
+      disabled="{{loading}}"
+    >
+      重新加载
+    </button></view
+  ><view wx:if="{{loading}}" class="card state-panel"
+    ><view class="loading-indicator"></view
+    ><text class="muted">正在读取账号信息…</text></view
+  >
   <view wx:if="{{!loggedIn}}" class="card login-card">
-    <view class="section-title">把练习，留在自己的账号里</view><view class="muted">清单、听写进度和错词可在不同设备间同步。</view>
-    <checkbox-group bindchange="agree"><label class="agreement"><checkbox value="agree" checked="{{agreed}}" color="#6376b9"/><text>我已阅读并同意隐私说明；未满 14 周岁请由监护人阅读并同意。</text></label></checkbox-group>
-    <view class="row privacy-links"><text class="link small" bindtap="privacy">隐私说明</text><text class="link small" bindtap="contract">微信隐私保护指引</text></view>
-    <button id="login-privacy-agree" class="primary" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="login" disabled="{{busy || !agreed || !config.configured}}">{{busy ? '正在登录…' : config.configured ? '微信登录' : '服务准备中'}}</button>
+    <view class="section-title">把练习，留在自己的账号里</view
+    ><view class="muted">清单、听写进度和错词可在不同设备间同步。</view>
+    <checkbox-group bindchange="agree"
+      ><label class="agreement"
+        ><checkbox value="agree" checked="{{agreed}}" color="#252b25" /><text
+          >我已阅读并同意隐私说明；未满 14 周岁请由监护人阅读并同意。</text
+        ></label
+      ></checkbox-group
+    >
+    <view class="row privacy-links"
+      ><button
+        hover-class="tap-feedback"
+        hover-stay-time="80"
+        class="plain mini link"
+        bindtap="privacy"
+      >
+        隐私说明</button
+      ><button
+        hover-class="tap-feedback"
+        hover-stay-time="80"
+        class="plain mini link"
+        bindtap="contract"
+      >
+        微信隐私保护指引
+      </button></view
+    >
+    <button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      id="login-privacy-agree"
+      class="primary"
+      open-type="agreePrivacyAuthorization"
+      bindagreeprivacyauthorization="login"
+      loading="{{busy}}"
+      disabled="{{busy || loading || !agreed || !config.configured}}"
+    >
+      {{busy ? '正在登录…' : loading ? '正在连接…' : config.configured ?
+      '微信登录' : '服务暂不可用'}}
+    </button>
   </view>
-  <block wx:if="{{loggedIn}}">
-    <view class="card quota-card"><view class="between"><view class="section-title">今天的 AI 使用额度</view><view class="badge">北京时间每日重置</view></view><view class="quota-number">{{remaining}}<text> / {{limit}} 点剩余</text></view><view class="small muted">朗读 1 点 · 识别照片 5 点 · 整理清单 10 点</view><view class="small muted">语音转写 2 点 · 听写对话 5 点 · 拍照批改 10 点</view><view class="small muted quota-note">所有功能免费开放。每日额度用于控制服务负载，任务提交后计入用量；失败或取消也计入。</view></view>
-    <view class="card"><view class="between"><view><view class="section-title">学习记录同步</view><view class="muted">{{pending ? pending + ' 份本机修改等待同步' : '本机没有待同步的修改'}}</view></view><button class="mini" bindtap="sync" disabled="{{busy}}">同步</button></view><view class="small muted sync-note">多台设备同时编辑时会提示冲突，避免覆盖彼此的修改。</view></view>
+  <block wx:if="{{loggedIn && !loading && !error}}">
+    <view class="card quota-card"
+      ><view class="between"
+        ><view class="section-title">今日 AI 额度</view
+        ><view class="badge">全部免费</view></view
+      ><view class="quota-decoration" aria-hidden="true">✦</view
+      ><view class="quota-number"
+        >{{remaining}}<text> / {{limit}} 点剩余</text></view
+      ><view class="quota-track"
+        ><view
+          style="width: {{limit ? remaining / limit * 100 : 0}}%"
+        ></view></view
+      ><view class="small muted">北京时间每日重置</view
+      ><button
+        hover-class="tap-feedback"
+        hover-stay-time="80"
+        class="quota-toggle plain mini"
+        bindtap="toggleQuota"
+        aria-expanded="{{showQuota}}"
+      >
+        {{showQuota ? '收起用量说明 −' : '查看用量说明 ＋'}}</button
+      ><view hidden="{{!showQuota}}"
+        ><view class="small muted"
+          >朗读 1 点 · 识别照片 5 点 · 整理清单 10 点</view
+        ><view class="small muted"
+          >语音转写 2 点 · 听写对话 5 点 · 拍照批改 10 点</view
+        ><view class="small muted quota-note"
+          >所有功能免费开放。每日额度用于控制服务负载，任务提交后计入用量；失败或取消也计入。</view
+        ></view
+      ></view
+    >
+    <view class="card"
+      ><view class="between"
+        ><view
+          ><view class="section-title">学习记录同步</view
+          ><view class="muted"
+            >{{pending ? pending + ' 份本机修改等待同步' :
+            '本机没有待同步的修改'}}</view
+          ></view
+        ><button
+          hover-class="tap-feedback"
+          hover-stay-time="80"
+          class="mini"
+          bindtap="sync"
+          disabled="{{busy}}"
+          loading="{{busy}}"
+        >
+          {{busy ? '同步中' : '同步'}}
+        </button></view
+      ><view class="small muted sync-note"
+        >多台设备同时编辑时会提示冲突，避免覆盖彼此的修改。</view
+      ></view
+    >
   </block>
-  <view class="card menu-card"><view class="menu-item" bindtap="privacy"><text>隐私说明与数据使用</text><text>→</text></view><view class="menu-item" bindtap="permissions"><text>照片与麦克风权限</text><text>→</text></view><button class="menu-item feedback-entry" open-type="feedback"><text>意见反馈</text><text>→</text></button><view class="menu-item" bindtap="contact"><text>联系运营者</text><text>→</text></view></view>
-  <view wx:if="{{loggedIn}}" class="account-actions"><button class="plain" bindtap="logout" disabled="{{busy}}">退出登录</button><button class="plain small" bindtap="deleteAccount" disabled="{{busy}}">注销账号并删除学习记录</button></view>
-  <view class="footer">听见 · 让每一次练习，都被认真对待</view>
+  <view class="card menu-card"
+    ><button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      class="menu-item"
+      bindtap="privacy"
+    >
+      <view class="row"
+        ><view class="menu-icon"><image src="/assets/shield-active.png" /></view
+        ><text>隐私说明与数据使用</text></view
+      ><text>↗</text></button
+    ><button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      class="menu-item"
+      bindtap="permissions"
+    >
+      <view class="row"
+        ><view class="menu-icon"><image src="/assets/camera-active.png" /></view
+        ><text>照片与麦克风权限</text></view
+      ><text>↗</text></button
+    ><button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      class="menu-item feedback-entry"
+      open-type="feedback"
+    >
+      <view class="row"
+        ><view class="menu-icon"><image src="/assets/chat-active.png" /></view
+        ><text>意见反馈</text></view
+      ><text>↗</text></button
+    ><button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      class="menu-item"
+      bindtap="contact"
+    >
+      <view class="row"
+        ><view class="menu-icon"><image src="/assets/mail-active.png" /></view
+        ><text>联系运营者</text></view
+      ><text>↗</text>
+    </button></view
+  >
+  <view wx:if="{{loggedIn}}" class="account-actions"
+    ><button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      class="plain"
+      bindtap="logout"
+      disabled="{{busy}}"
+    >
+      退出登录</button
+    ><button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      class="plain small"
+      bindtap="deleteAccount"
+      disabled="{{busy}}"
+    >
+      注销账号并删除学习记录
+    </button></view
+  >
+  <view class="footer">听见 · 所有功能免费</view>
 </view>
-<privacy-gate/>
+<privacy-gate />
