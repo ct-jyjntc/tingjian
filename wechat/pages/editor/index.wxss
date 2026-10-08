@@ -214,3 +214,50 @@
     font-size: 45rpx;
   }
 }
+.editor .page-header {
+  margin-bottom: 22rpx;
+}
+.list-heading {
+  margin-top: 18rpx;
+}
+.list-heading > .row {
+  gap: 0;
+}
+.list-title {
+  border: 0;
+  border-bottom: 2rpx solid #dedfce;
+  border-radius: 0;
+  background: transparent;
+  padding-left: 4rpx;
+  font-size: 34rpx;
+  font-weight: 650;
+}
+.add-content {
+  background: #f5e4a0;
+  color: #252b25;
+}
+.item-card {
+  margin-top: 12rpx;
+}
+.agent-card {
+  margin-top: 30rpx;
+}
+.sync-status,
+.local-save-hint {
+  color: #73756a;
+  font-size: 24rpx;
+  margin: 24rpx 0 0;
+}
+.local-save-hint .mini {
+  display: inline-flex;
+  align-items: center;
+  min-height: 80rpx;
+  text-decoration: underline;
+  padding-left: 8rpx;
+}
+.sync-status .row {
+  gap: 4rpx;
+}
+.editor .action-count {
+  font-size: 28rpx;
+}

@@ -1,7 +1,13 @@
 import { type DraftDocument, type Session, type Item } from "../../shared";
-import { signedIn } from "../../utils/api";
-import { readDocument, saveDocument, listHistory } from "../../utils/storage";
-import { confirm, showError, requireLogin } from "../../utils/ui";
+import { auth, signedIn } from "../../utils/api";
+import { readDocument, listHistory } from "../../utils/storage";
+import { showError, requireLogin } from "../../utils/ui";
+import {
+  readWork,
+  hasWork,
+  inputCount,
+  type EditorWork,
+} from "../../utils/workspace";
 Page({
   data: {
     loggedIn: false,
@@ -14,8 +20,16 @@ Page({
     wrongCount: 0,
     error: "",
     creating: "",
+    hasNewDraft: false,
+    newDraftCount: 0,
+    draftTitle: "",
+    refreshing: false,
   },
+  loaded: false,
+  owner: "",
+  refreshId: 0,
   onShow() {
+    this.setData({ creating: "" });
     this.getTabBar?.()?.setData({ selected: 0 });
     void this.refresh();
   },
@@ -24,17 +38,34 @@ Page({
     wx.stopPullDownRefresh();
   },
   async refresh() {
-    const loggedIn = signedIn();
+    const loggedIn = signedIn(),
+      owner = auth()?.user.id || "",
+      id = ++this.refreshId;
+    if (owner !== this.owner) {
+      this.loaded = false;
+      this.owner = owner;
+      this.setData({
+        hasDraft: false,
+        active: false,
+        historyCount: 0,
+        wrongCount: 0,
+        hasNewDraft: false,
+      });
+    }
     this.setData({
       loggedIn,
       error: "",
-      hasDraft: false,
-      active: false,
-      historyCount: 0,
-      wrongCount: 0,
+      loading: loggedIn && !this.loaded,
+      refreshing: loggedIn,
     });
     if (!loggedIn) return;
-    this.setData({ loading: true });
+    const work = readWork<EditorWork>("new-draft");
+    this.setData({
+      hasNewDraft: hasWork(work),
+      newDraftCount: work
+        ? work.draft.items.length + inputCount(work.input)
+        : 0,
+    });
     try {
       const [draft, session, history, wrong] = await Promise.all([
         readDocument<DraftDocument>("draft"),
@@ -42,7 +73,10 @@ Page({
         listHistory(),
         readDocument<Item[]>("wrong"),
       ]);
+      if (id !== this.refreshId || auth()?.user.id !== owner) return;
+      this.loaded = true;
       this.setData({
+        draftTitle: draft?.title || "上次的清单",
         hasDraft: Boolean(draft?.items.length),
         draftCount: draft?.items.length || 0,
         active: Boolean(session && session.phase !== "completed"),
@@ -53,54 +87,39 @@ Page({
         wrongCount: wrong?.length || 0,
       });
     } catch (error) {
+      if (id !== this.refreshId || auth()?.user.id !== owner) return;
       this.setData({
         error: error instanceof Error ? error.message : "暂时无法读取记录",
       });
     } finally {
-      this.setData({ loading: false });
+      if (id === this.refreshId)
+        this.setData({ loading: false, refreshing: false });
     }
   },
-  async newDraft(event: WechatMiniprogram.BaseEvent) {
-    if (
-      this.data.creating ||
-      this.data.loading ||
-      this.data.error ||
-      !requireLogin()
-    )
-      return;
+  newDraft(event: WechatMiniprogram.BaseEvent) {
+    if (this.data.creating) return;
     const source = String(event.currentTarget.dataset.source || "text");
+    if (!["camera", "album", "text"].includes(source)) return;
+    const url = `/pages/editor/index?new=1&source=${source}`;
+    if (!requireLogin(url)) return;
     this.setData({ creating: source });
-    try {
-      if (
-        this.data.hasDraft &&
-        !(await confirm(
-          "开始一份新清单？",
-          "会替换当前正在编辑的草稿，已保存的听写历史不受影响。",
-          "新建清单",
-        ))
-      )
-        return;
-      // Read first so a new document never silently overwrites another device.
-      await readDocument("draft");
-      await saveDocument("draft", {
-        title: "新的听写",
-        items: [],
-        materials: [],
-      });
-      wx.navigateTo({
-        url: `/pages/editor/index?source=${source}`,
-      });
-    } catch (error) {
-      showError(error);
-    } finally {
-      this.setData({ creating: "" });
-    }
+    wx.navigateTo({
+      url,
+      fail: () => showError(new Error("页面未打开，请重试")),
+      complete: () => this.setData({ creating: "" }),
+    });
+  },
+  continueNewDraft() {
+    const url = "/pages/editor/index?new=1";
+    if (requireLogin(url)) wx.navigateTo({ url });
   },
   continueDraft() {
-    if (requireLogin()) wx.navigateTo({ url: "/pages/editor/index" });
+    if (requireLogin("/pages/editor/index"))
+      wx.navigateTo({ url: "/pages/editor/index" });
   },
   continuePractice() {
-    if (requireLogin()) wx.navigateTo({ url: "/pages/practice/index" });
+    if (requireLogin("/pages/practice/index"))
+      wx.navigateTo({ url: "/pages/practice/index" });
   },
   library() {
     wx.switchTab({ url: "/pages/library/index" });

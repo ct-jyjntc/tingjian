@@ -4,14 +4,11 @@ import {
   sessionContext,
   isCurrentSessionTurn,
   commandLabels,
-  explanationText,
-  readableText,
-  recordId,
   type Session,
   type Intent,
-  type Explanation,
   type HistoryDocument,
   type SessionAgentReply,
+  type SessionContext,
 } from "../../shared";
 import { ai } from "../../utils/api";
 import {
@@ -21,24 +18,17 @@ import {
   saveDocument,
 } from "../../utils/storage";
 import { AudioPlayer } from "../../utils/audio";
-import { VoiceRecorder, readBytes } from "../../utils/media";
+import { ContinuousRecorder, SpeechTurns } from "../../utils/listening";
+import { dictationCommand } from "../../utils/commands";
+import { readWork, saveWork } from "../../utils/workspace";
 import { TaskScope, Cancelled } from "../../utils/task";
-import { formFocus } from "../../behaviors/form";
 import {
   confirm,
-  notify,
   showError,
   requireLogin,
-  type InputEvent,
   type TapEvent,
 } from "../../utils/ui";
 
-type Turn = {
-  id: string;
-  role: "user" | "assistant";
-  text: string;
-  explanation?: Explanation;
-};
 const labels: Record<Session["phase"], string> = {
   idle: "准备好就开始",
   preparing: "正在准备声音",
@@ -50,7 +40,6 @@ const labels: Record<Session["phase"], string> = {
   error: "声音暂时没跟上",
 };
 Page({
-  behaviors: [formFocus],
   data: {
     loading: true,
     error: "",
@@ -60,35 +49,34 @@ Page({
     total: 0,
     progress: 0,
     answer: "",
-    revealed: false,
     marked: false,
     speed: 1,
-    allowHints: true,
-    showAnswer: false,
-    turns: [] as Turn[],
-    input: "",
-    assistantBusy: false,
-    recording: false,
-    recordBusy: false,
-    feedback: "",
-    speakingId: "",
-    narrating: false,
-    autoSpeak: true,
     syncError: "",
+    finishing: false,
+    voiceEnabled: true,
+    micState: "off",
+    voiceError: "",
+    heard: "",
+    voiceFeedback: "",
+    showVoiceHelp: false,
   },
   session: null as Session | null,
   player: null as AudioPlayer | null,
-  recorder: null as VoiceRecorder | null,
-  assistantScope: null as TaskScope | null,
-  recordScope: null as TaskScope | null,
+  recorder: null as ContinuousRecorder | null,
+  vad: new SpeechTurns<SessionContext>(),
+  listenScope: null as TaskScope | null,
+  voiceScope: null as TaskScope | null,
+  micLive: false,
   visible: true,
   finishing: false,
   echoUntil: 0,
+  beforeEnd: "paused" as Session["phase"],
   interrupt: null as (() => void) | null,
   async onLoad(options: Record<string, string | undefined>) {
-    if (!requireLogin()) return;
+    if (!requireLogin("/pages/practice/index")) return;
     this.player = new AudioPlayer();
-    this.recorder = new VoiceRecorder();
+    this.recorder = new ContinuousRecorder();
+    this.setData({ voiceEnabled: readWork<boolean>("voice-enabled") ?? true });
     this.interrupt = () => this.pauseForBackground();
     wx.onAudioInterruptionBegin(this.interrupt);
     try {
@@ -100,8 +88,17 @@ Page({
         await this.finish();
         return;
       }
-      this.session = { ...session, phase: "paused", round: session.round + 1 };
+      this.session = {
+        ...session,
+        phase: ["playing", "preparing", "confirming"].includes(session.phase)
+          ? "paused"
+          : session.phase,
+        round: session.round + 1,
+      };
       this.render();
+      this.setData({ loading: false });
+      wx.setKeepScreenOn?.({ keepScreenOn: this.visible });
+      if (this.data.voiceEnabled && this.visible) await this.startListening();
       if (options.autostart === "1" && this.visible) this.action("resume");
     } catch (error) {
       this.setData({
@@ -113,6 +110,10 @@ Page({
   },
   onShow() {
     this.visible = true;
+    if (this.session) {
+      wx.setKeepScreenOn?.({ keepScreenOn: true });
+      if (this.data.voiceEnabled) void this.startListening();
+    }
   },
   home() {
     wx.switchTab({ url: "/pages/home/index" });
@@ -142,14 +143,12 @@ Page({
           session.items.length) *
           100,
       ),
-      answer:
-        this.data.revealed || session.settings.showAnswer ? item.answer : "",
+      answer: session.settings.showAnswer ? item.answer : "",
       marked: item.marked,
       speed: Math.round(session.settings.speed * 10) / 10,
-      allowHints: session.settings.allowHints,
-      showAnswer: session.settings.showAnswer,
       error: session.error || "",
     });
+    this.refreshMicState();
   },
   update(session: Session, sync = false) {
     this.session = session;
@@ -177,50 +176,88 @@ Page({
         });
     }
   },
-  cancelAssistant() {
-    this.assistantScope?.cancel();
-    this.assistantScope = null;
-    this.setData({ assistantBusy: false });
+  cancelVoiceRequest() {
+    this.voiceScope?.cancel();
+    this.voiceScope = null;
+    this.vad.reset();
+    this.refreshMicState();
   },
-  cancelRecording() {
-    this.recordScope?.cancel();
-    this.recordScope = null;
-    this.setData({ recording: false, recordBusy: false });
+  stopListening() {
+    this.listenScope?.cancel();
+    this.listenScope = null;
+    this.micLive = false;
+    this.cancelVoiceRequest();
+    this.refreshMicState();
   },
   stopAudio() {
     this.player?.stop();
-    this.echoUntil = Date.now() + 800;
-    this.setData({ speakingId: "", narrating: false });
+    this.echoUntil = Date.now() + 750;
+    this.vad.reset();
   },
   pauseForBackground() {
-    this.cancelAssistant();
-    this.cancelRecording();
+    wx.setKeepScreenOn?.({ keepScreenOn: false });
+    this.stopListening();
     this.stopAudio();
     if (this.session && this.session.phase !== "completed")
       this.update(
-        { ...this.session, phase: "paused", round: this.session.round + 1 },
+        {
+          ...this.session,
+          phase: ["playing", "preparing", "confirming"].includes(
+            this.session.phase,
+          )
+            ? "paused"
+            : this.session.phase,
+          round: this.session.round + 1,
+        },
         true,
       );
+  },
+  togglePlayback() {
+    this.action(
+      ["playing", "preparing"].includes(this.data.phase)
+        ? "pause"
+        : this.data.phase === "waiting"
+          ? "repeat"
+          : "resume",
+    );
   },
   tapAction(event: TapEvent) {
     this.action(event.currentTarget.dataset.intent as Intent);
   },
-  action(intent: Intent, round?: number, fromAgent = false) {
+  action(intent: Intent, round?: number, fromVoice = false) {
     const current = this.session;
     round ??= current?.round;
-    if (!current || round === undefined || !this.visible) return false;
-    if (!fromAgent) this.cancelAssistant();
-    this.cancelRecording();
-    if (intent === "explain") {
-      if (current.settings.allowHints)
-        void this.ask("请解释当前词语，并给出一个记忆方法和例句。");
+    if (
+      !current ||
+      round !== current.round ||
+      !this.visible ||
+      ["completed", "confirming"].includes(current.phase)
+    )
       return false;
-    }
-    const next = transition(current, intent, round);
+    if (intent === "explain" || intent === "unknown") return false;
+    if (!fromVoice) this.cancelVoiceRequest();
+    this.vad.reset();
+    // Already waiting for handwriting: "等一下" must not force another playback.
+    if (intent === "pause" && current.phase === "waiting") return true;
+    if (intent === "end")
+      this.beforeEnd = ["playing", "preparing", "confirming"].includes(
+        current.phase,
+      )
+        ? "paused"
+        : current.phase;
+    const next =
+      !fromVoice && intent === "mark" && current.items[current.index].marked
+        ? {
+            ...current,
+            items: current.items.map((item, index) =>
+              index === current.index ? { ...item, marked: false } : item,
+            ),
+          }
+        : transition(current, intent, round);
     if (next === current) return false;
     if (isPlaybackCommand(intent)) this.stopAudio();
     if (next.index !== current.index)
-      this.setData({ revealed: false, turns: [], feedback: "" });
+      this.setData({ heard: "", voiceFeedback: "" });
     this.update(next, ["paused", "waiting", "completed"].includes(next.phase));
     if (next.phase === "completed") void this.finish();
     else if (next.phase === "confirming") void this.confirmEnd();
@@ -248,7 +285,7 @@ Page({
       await this.finish();
     } else
       this.update(
-        { ...current, phase: "paused", round: current.round + 1 },
+        { ...current, phase: this.beforeEnd, round: current.round + 1 },
         true,
       );
   },
@@ -274,7 +311,7 @@ Page({
         },
       );
       if (this.visible && this.session?.round === round) {
-        this.echoUntil = Date.now() + 800;
+        this.echoUntil = Date.now() + 750;
         this.update({ ...this.session, phase: "waiting" }, true);
       }
     } catch (error) {
@@ -294,196 +331,192 @@ Page({
         );
     }
   },
-  reveal() {
-    if (!this.session) return;
-    this.setData({ revealed: !this.data.revealed });
-    if (this.data.revealed)
-      this.update(transition(this.session, "explain", this.session.round));
-    this.render();
-  },
-  input(event: InputEvent) {
-    this.setData({ input: event.detail.value });
-  },
-  send() {
-    const text = this.data.input.trim();
-    if (text) {
-      this.setData({ input: "" });
-      void this.ask(text);
-    }
-  },
-  append(turn: Turn) {
-    this.setData({ turns: [...this.data.turns, turn].slice(-12) });
-  },
-  async ask(text: string) {
+  refreshMicState() {
+    let micState = "off";
     if (
+      this.data.voiceEnabled &&
+      this.visible &&
+      this.session?.phase !== "completed"
+    ) {
+      micState = this.data.voiceError
+        ? "error"
+        : !this.listenScope
+          ? "off"
+          : !this.micLive
+            ? "starting"
+            : this.voiceScope
+              ? "processing"
+              : !this.canHear()
+                ? "muted"
+                : this.vad.speaking
+                  ? "speech"
+                  : "listening";
+    }
+    if (micState !== this.data.micState) this.setData({ micState });
+  },
+  canHear() {
+    return Boolean(
+      this.visible &&
+      this.data.voiceEnabled &&
+      this.micLive &&
+      this.session &&
+      ["waiting", "idle", "paused", "error"].includes(this.session.phase) &&
+      Date.now() >= this.echoUntil,
+    );
+  },
+  async startListening() {
+    if (
+      this.listenScope ||
       !this.session ||
       !this.visible ||
+      !this.data.voiceEnabled ||
       ["completed", "confirming"].includes(this.session.phase)
     )
       return;
-    this.cancelAssistant();
-    this.cancelRecording();
-    this.stopAudio();
-    if (["playing", "preparing"].includes(this.session.phase))
-      this.update(transition(this.session, "pause", this.session.round));
-    const context = sessionContext(this.session),
-      history = this.data.turns.slice(-8).map((turn) => ({
-        role: turn.role,
-        content: turn.text.slice(0, 30000),
-      }));
-    const scope = (this.assistantScope = new TaskScope());
-    this.append({ id: recordId(), role: "user", text });
-    this.setData({ assistantBusy: true, feedback: "听见正在理解你的想法…" });
+    const scope = (this.listenScope = new TaskScope());
+    this.setData({ voiceError: "" });
+    this.refreshMicState();
     try {
-      const reply = await ai<SessionAgentReply>(
-        "session-agent",
-        { text, context, history },
+      this.recorder ||= new ContinuousRecorder();
+      await this.recorder.start(
+        scope,
+        (frame) => this.hearFrame(frame),
+        (error) => {
+          if (this.listenScope === scope) this.microphoneFailed(error);
+        },
+      );
+      scope.check();
+      this.micLive = true;
+      this.refreshMicState();
+    } catch (error) {
+      if (!(error instanceof Cancelled) && this.listenScope === scope)
+        this.microphoneFailed(error);
+    }
+  },
+  microphoneFailed(error: unknown) {
+    this.stopListening();
+    this.setData({
+      voiceError:
+        error instanceof Error ? error.message : "语音控制暂不可用，请重试",
+    });
+    this.refreshMicState();
+  },
+  hearFrame(frame: ArrayBuffer) {
+    if (!this.canHear() || this.voiceScope || !this.session) {
+      this.vad.reset();
+      this.refreshMicState();
+      return;
+    }
+    const turn = this.vad.push(frame, sessionContext(this.session));
+    this.refreshMicState();
+    if (turn) void this.voiceCommand(turn.wave, turn.context);
+  },
+  async voiceCommand(wave: ArrayBuffer, context: SessionContext) {
+    if (
+      !this.session ||
+      !this.canHear() ||
+      this.voiceScope ||
+      !isCurrentSessionTurn(context, this.session)
+    )
+      return;
+    const scope = (this.voiceScope = new TaskScope());
+    const timeout = setTimeout(() => {
+      if (this.voiceScope === scope)
+        this.microphoneFailed(
+          new Error("语音识别等待较久，请检查网络后重新开启"),
+        );
+    }, 20000);
+    this.refreshMicState();
+    try {
+      const transcript = await ai<{ text: string; final: boolean }>(
+        "asr",
+        { audio: wx.arrayBufferToBase64(wave), mime: "audio/wav" },
         scope,
       );
       scope.check();
       if (
-        !this.visible ||
         !this.session ||
+        !this.visible ||
+        !this.data.voiceEnabled ||
         !isCurrentSessionTurn(context, this.session)
       )
         return;
-      if (reply.type === "control") {
-        const applied = this.action(reply.command, context.round, true);
-        this.setData({
-          feedback: applied
-            ? `已执行：${commandLabels[reply.command]}`
-            : "当前还不能执行这个操作，进度保持不变。",
-        });
-        if (
-          this.session.index === context.index &&
-          this.session.phase !== "completed"
-        )
-          this.append({
-            id: recordId(),
-            role: "assistant",
-            text: readableText(reply.message),
-          });
-      } else {
-        if (reply.type === "explanation")
-          this.update(transition(this.session, "explain", context.round));
-        const turn: Turn = {
-          id: recordId(),
-          role: "assistant",
-          text:
-            reply.type === "explanation"
-              ? explanationText(reply.explanation)
-              : readableText(reply.message),
-          ...(reply.type === "explanation"
-            ? { explanation: reply.explanation }
-            : {}),
-        };
-        this.append(turn);
-        this.setData({ feedback: "" });
-        if (this.data.autoSpeak) void this.speak(turn);
+      if (transcript.final !== true || !transcript.text.trim()) return;
+      const text = transcript.text.trim();
+      this.setData({ heard: text, voiceFeedback: "" });
+      const parsed = dictationCommand(text, context.phase);
+      let intent = parsed.intent;
+      if (parsed.infer) {
+        const reply = await ai<SessionAgentReply>(
+          "session-agent",
+          {
+            text,
+            context: { ...context, allowHints: false },
+            history: [],
+          },
+          scope,
+        );
+        scope.check();
+        // This page only accepts controls. Explanations and chat never render or play.
+        intent = reply.type === "control" ? reply.command : "unknown";
       }
+      if (
+        !this.session ||
+        !this.visible ||
+        !this.data.voiceEnabled ||
+        !isCurrentSessionTurn(context, this.session)
+      )
+        return;
+      const applied = this.action(intent, context.round, true);
+      this.setData({
+        heard: text,
+        voiceFeedback: applied
+          ? intent === "pause" && context.phase === "waiting"
+            ? "好，我等你写好"
+            : `已执行：${commandLabels[intent as keyof typeof commandLabels]}`
+          : "没有切换题目。可以说“再读一遍”“写好了”或“等一下”。",
+      });
     } catch (error) {
-      if (!(error instanceof Cancelled)) {
-        this.setData({
-          feedback:
-            error instanceof Error
-              ? error.message
-              : "助手暂时没能回答，听写进度已保留",
-        });
-      }
+      if (!(error instanceof Cancelled) && this.voiceScope === scope)
+        this.microphoneFailed(error);
     } finally {
-      if (this.assistantScope === scope) {
-        this.assistantScope = null;
-        this.setData({ assistantBusy: false });
+      clearTimeout(timeout);
+      if (this.voiceScope === scope) {
+        this.voiceScope = null;
+        this.refreshMicState();
       }
     }
   },
-  autoSpeak(event: WechatMiniprogram.CustomEvent<{ value: boolean }>) {
-    this.setData({ autoSpeak: event.detail.value });
-    if (!event.detail.value) this.stopNarration();
-  },
-  speakTurn(event: TapEvent) {
-    const turn = this.data.turns.find(
-      (turn) => turn.id === event.currentTarget.dataset.id,
-    );
-    if (turn) void this.speak(turn);
-  },
-  async speak(turn: Turn) {
-    if (
-      !this.session ||
-      !this.visible ||
-      ["completed", "confirming"].includes(this.session.phase)
-    )
-      return;
-    this.cancelRecording();
-    this.stopAudio();
-    if (["playing", "preparing"].includes(this.session.phase))
-      this.update(transition(this.session, "pause", this.session.round));
-    this.setData({ speakingId: turn.id, narrating: true });
+  voiceToggle(event: WechatMiniprogram.CustomEvent<{ value: boolean }>) {
+    const enabled = event.detail.value;
+    this.setData({
+      voiceEnabled: enabled,
+      voiceError: "",
+      heard: "",
+      voiceFeedback: "",
+    });
     try {
-      await this.player!.narrate(turn.text, this.session.settings, () => {});
-    } catch (error) {
-      if (!(error instanceof Cancelled))
-        notify("文字讲解已保留，暂时无法朗读，可以稍后重听");
-    } finally {
-      if (this.data.speakingId === turn.id) {
-        this.echoUntil = Date.now() + 800;
-        this.setData({ speakingId: "", narrating: false });
-      }
-    }
-  },
-  stopNarration() {
-    if (this.data.narrating) this.stopAudio();
-  },
-  async voice() {
-    if (this.data.recording) {
-      this.recorder?.stop();
-      return;
-    }
-    if (this.data.recordBusy || !this.session) return;
-    this.cancelAssistant();
-    this.stopAudio();
-    if (["playing", "preparing"].includes(this.session.phase))
-      this.update(transition(this.session, "pause", this.session.round));
-    const round = this.session.round,
-      scope = (this.recordScope = new TaskScope());
-    this.setData({ recordBusy: true, feedback: "准备录音…" });
-    try {
-      await scope.wait(Math.max(0, this.echoUntil - Date.now()));
-      const path = await this.recorder!.capture(scope, () =>
-        this.setData({
-          recording: true,
-          feedback: "正在听，最长 20 秒。说完后点击发送。",
-        }),
-      );
-      scope.check();
-      this.setData({ recording: false, feedback: "正在把你的语音转成文字…" });
-      const bytes = await readBytes(path);
-      scope.check();
-      const transcript = await ai<{ text: string }>(
-        "asr",
-        { audio: wx.arrayBufferToBase64(bytes), mime: "audio/mpeg" },
-        scope,
-      );
-      scope.check();
-      if (this.session?.round !== round || !this.visible) return;
-      this.recordScope = null;
-      this.setData({ recordBusy: false });
-      if (!transcript.text.trim()) notify("没有听清，请再说一次或直接打字");
-      else await this.ask(transcript.text);
+      saveWork("voice-enabled", enabled);
     } catch (error) {
       showError(error);
-    } finally {
-      if (this.recordScope === scope) {
-        this.recordScope = null;
-        this.setData({ recording: false, recordBusy: false });
-      }
     }
+    if (enabled) void this.startListening();
+    else this.stopListening();
+  },
+  retryListening() {
+    void this.startListening();
+  },
+  voiceHelp() {
+    this.setData({ showVoiceHelp: !this.data.showVoiceHelp });
+  },
+  permissions() {
+    wx.openSetting({});
   },
   async finish() {
     if (!this.session || this.finishing) return;
     this.finishing = true;
-    this.cancelAssistant();
-    this.cancelRecording();
+    this.setData({ finishing: true });
+    this.stopListening();
     this.stopAudio();
     const session = this.session,
       key = `history:${session.id}`;
@@ -499,9 +532,17 @@ Page({
             confirmed: false,
           })),
         });
+      else await syncDocument(key);
       await syncDocument("session");
       wx.redirectTo({
         url: `/pages/result/index?id=${encodeURIComponent(session.id)}`,
+        fail: () => {
+          this.finishing = false;
+          this.setData({
+            finishing: false,
+            syncError: "结果页面未打开，点击下方按钮重试",
+          });
+        },
       });
     } catch (error) {
       this.setData({
@@ -509,12 +550,10 @@ Page({
           error instanceof Error ? error.message : "保存未完成，请重试",
       });
       this.finishing = false;
+      this.setData({ finishing: false });
     }
   },
   finishRetry() {
     void this.finish();
-  },
-  backHome() {
-    wx.switchTab({ url: "/pages/home/index" });
   },
 });

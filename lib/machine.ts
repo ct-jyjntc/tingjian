@@ -1,4 +1,5 @@
 import { Session } from "./types";
+import { stripPunctuation } from "./text-normalization";
 export type Intent =
   | "next"
   | "repeat"
@@ -95,10 +96,12 @@ export function grade(
   punctuation = false,
 ) {
   if (!readable) return "无法辨认";
-  const norm = (s: string) =>
-    (caseSensitive ? s : s.toLowerCase())
+  const norm = (s: string) => {
+    const text = (caseSensitive ? s : s.toLowerCase())
       .normalize("NFKC")
-      .replace(punctuation ? /\s+/g : /[\s\p{P}]/gu, "");
+      .replace(/\s+/g, "");
+    return punctuation ? text : stripPunctuation(text);
+  };
   return !answer.trim()
     ? "漏写"
     : norm(answer) === norm(expected)

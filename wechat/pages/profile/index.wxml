@@ -71,8 +71,8 @@
       '微信登录' : '服务暂不可用'}}
     </button>
   </view>
-  <block wx:if="{{loggedIn && !loading && !error}}">
-    <view class="card quota-card"
+  <block wx:if="{{loggedIn && !loading}}">
+    <view wx:if="{{quotaReady}}" class="card quota-card"
       ><view class="between"
         ><view class="section-title">今日 AI 额度</view
         ><view class="badge">全部免费</view></view
@@ -96,10 +96,16 @@
         ><view class="small muted"
           >朗读 1 点 · 识别照片 5 点 · 整理清单 10 点</view
         ><view class="small muted"
-          >语音转写 2 点 · 听写对话 5 点 · 拍照批改 10 点</view
+          >语音转写 2 点 · 自然指令理解 5 点 · 拍照批改 10 点</view
         ><view class="small muted quota-note"
           >所有功能免费开放。每日额度用于控制服务负载，任务提交后计入用量；失败或取消也计入。</view
         ></view
+      ></view
+    >
+    <view wx:else class="card"
+      ><view class="section-title">今日 AI 额度暂未获取</view
+      ><view class="muted"
+        >连接恢复后重新加载即可查看，不代表额度已用完。</view
       ></view
     >
     <view class="card"
@@ -116,9 +122,9 @@
           class="mini"
           bindtap="sync"
           disabled="{{busy}}"
-          loading="{{busy}}"
+          loading="{{syncing}}"
         >
-          {{busy ? '同步中' : '同步'}}
+          {{syncing ? '同步中' : '同步'}}
         </button></view
       ><view class="small muted sync-note"
         >多台设备同时编辑时会提示冲突，避免覆盖彼此的修改。</view

@@ -4,9 +4,11 @@
     ><text>02 听写</text><view class="step-line"></view
     ><text>03 核查</text></view
   ><view class="page-header editor-header"
-    ><view class="page-title">准备听写清单</view
+    ><view class="page-title"
+      >{{localDraft ? '准备新清单' : '编辑听写清单'}}</view
     ><view class="page-description"
-      >先核对内容，再按自己的节奏开始。</view
+      >{{localDraft ? '输入自动保存在本机，上次的清单仍保留。' :
+      '核对内容，准备好后开始听写。'}}</view
     ></view
   >
   <view wx:if="{{error}}" class="note error"
@@ -25,7 +27,11 @@
     ><text class="muted">正在取出你的清单…</text></view
   >
   <block wx:elif="{{!error}}">
-    <view class="card import-card">
+    <view
+      wx:if="{{showImport || !count}}"
+      id="import-card"
+      class="card import-card"
+    >
       <button
         hover-class="tap-feedback"
         hover-stay-time="80"
@@ -167,6 +173,182 @@
     >
       取消当前 AI 任务
     </button>
+    <block wx:if="{{count || undoable}}">
+      <view id="list-heading" class="between list-heading"
+        ><view class="section-title"
+          >听写清单 <text class="muted">{{count}} 项</text></view
+        ><view class="row"
+          ><button
+            class="mini add-content"
+            bindtap="openImport"
+            hover-class="tap-feedback"
+            disabled="{{busy}}"
+          >
+            ＋ 添加</button
+          ><button
+            hover-class="tap-feedback"
+            hover-stay-time="80"
+            class="plain mini"
+            bindtap="undo"
+            disabled="{{!undoable || busy}}"
+          >
+            撤销
+          </button></view
+        ></view
+      >
+      <input
+        class="{{focusKey === 'field-3' ? 'field-focus' : ''}} list-title"
+        value="{{title}}"
+        bindblur="titleInput"
+        maxlength="100"
+        placeholder="清单名称，例如：第三课生词"
+        disabled="{{busy}}"
+        data-focus-key="field-3"
+        bindfocus="focusField"
+        aria-label="清单名称"
+        cursor-spacing="40"
+      />
+      <view wx:if="{{issueCount}}" class="note"
+        >有 {{issueCount}} 项需要对照课本核查，确认后才能开始。</view
+      >
+      <view
+        wx:for="{{items}}"
+        wx:key="id"
+        id="item-{{item.id}}"
+        class="item-card"
+      >
+        <button
+          hover-class="tap-feedback"
+          hover-stay-time="80"
+          class="item-summary between"
+          data-id="{{item.id}}"
+          bindtap="edit"
+          disabled="{{busy}}"
+          aria-expanded="{{editingId === item.id}}"
+        >
+          <view class="item-number">{{item.number}}</view
+          ><view class="grow"
+            ><view class="item-spoken">{{item.spoken || '待补全内容'}}</view
+            ><view wx:if="{{item.spoken !== item.answer}}" class="small muted"
+              >答案：{{item.answer || '待补全'}}</view
+            ><view wx:if="{{item.generated}}" class="badge warm"
+              >AI 生成 · 请核查</view
+            ></view
+          ><text class="small link"
+            >{{editingId === item.id ? '收起' : '编辑'}}</text
+          >
+        </button>
+        <view wx:if="{{item.issue}}" class="note small"
+          >{{item.issue}}<button
+            hover-class="tap-feedback"
+            hover-stay-time="80"
+            class="mini plain"
+            data-id="{{item.id}}"
+            bindtap="reviewed"
+            disabled="{{busy}}"
+          >
+            已对照原文，确认无误 ✓
+          </button></view
+        >
+        <view wx:if="{{editingId === item.id}}" class="item-edit"
+          ><view class="field-label">朗读内容（通常也是答案）</view
+          ><input
+            class="{{focusKey === 'spoken-' + item.id ? 'field-focus' : ''}}"
+            value="{{item.spoken}}"
+            data-id="{{item.id}}"
+            data-field="spoken"
+            bindblur="field"
+            maxlength="1000"
+            disabled="{{busy}}"
+            data-focus-key="spoken-{{item.id}}"
+            bindfocus="focusField"
+            aria-label="朗读内容"
+            cursor-spacing="40"
+          /><view class="field-label">标准答案</view
+          ><input
+            class="{{focusKey === 'answer-' + item.id ? 'field-focus' : ''}}"
+            value="{{item.answer}}"
+            data-id="{{item.id}}"
+            data-field="answer"
+            bindblur="field"
+            maxlength="1000"
+            disabled="{{busy}}"
+            data-focus-key="answer-{{item.id}}"
+            bindfocus="focusField"
+            aria-label="标准答案"
+            cursor-spacing="40"
+          /><view class="field-label">发音替换（可选）</view
+          ><input
+            class="{{focusKey === 'pronunciation-' + item.id ? 'field-focus' : ''}}"
+            value="{{item.pronunciation}}"
+            data-id="{{item.id}}"
+            data-field="pronunciation"
+            bindblur="field"
+            maxlength="1000"
+            disabled="{{busy}}"
+            placeholder="只影响发音，不修改标准答案"
+            data-focus-key="pronunciation-{{item.id}}"
+            bindfocus="focusField"
+            aria-label="发音替换"
+            cursor-spacing="40"
+          /><view class="small muted source-label">来源：{{item.source}}</view
+          ><view class="row"
+            ><button
+              hover-class="tap-feedback"
+              hover-stay-time="80"
+              class="mini"
+              data-id="{{item.id}}"
+              data-delta="-1"
+              bindtap="move"
+              disabled="{{busy || index === 0}}"
+            >
+              上移</button
+            ><button
+              hover-class="tap-feedback"
+              hover-stay-time="80"
+              class="mini"
+              data-id="{{item.id}}"
+              data-delta="1"
+              bindtap="move"
+              disabled="{{busy || index === count - 1}}"
+            >
+              下移</button
+            ><button
+              hover-class="tap-feedback"
+              hover-stay-time="80"
+              class="mini plain danger"
+              data-id="{{item.id}}"
+              bindtap="remove"
+              disabled="{{busy}}"
+            >
+              删除
+            </button></view
+          ></view
+        >
+      </view>
+      <view class="row list-tools"
+        ><button
+          hover-class="tap-feedback"
+          hover-stay-time="80"
+          class="mini"
+          bindtap="splitWords"
+          disabled="{{!count || busy}}"
+        >
+          按英文单词拆分</button
+        ><button
+          hover-class="tap-feedback"
+          hover-stay-time="80"
+          wx:if="{{sourceText}}"
+          class="plain mini"
+          bindtap="toggleSources"
+        >
+          {{showSources ? '收起原文' : '查看识别原文'}}
+        </button></view
+      >
+      <view wx:if="{{showSources}}" class="card preserve small"
+        >{{sourceText}}</view
+      >
+    </block>
     <view id="assistant-card" class="card agent-card">
       <button
         hover-class="tap-feedback"
@@ -270,177 +452,12 @@
               class="plain"
               bindtap="discard"
             >
-              收起
+              不使用这份草稿
             </button></view
           ></view
         >
       </view>
     </view>
-    <view class="between list-heading"
-      ><view class="section-title"
-        >听写清单 <text class="muted">{{count}} 项</text></view
-      ><button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
-        class="plain mini"
-        bindtap="undo"
-        disabled="{{!undoable || busy}}"
-      >
-        撤销
-      </button></view
-    >
-    <input
-      class="{{focusKey === 'field-3' ? 'field-focus' : ''}} list-title"
-      value="{{title}}"
-      bindblur="titleInput"
-      maxlength="100"
-      placeholder="清单名称，例如：第三课生词"
-      disabled="{{busy}}"
-      data-focus-key="field-3"
-      bindfocus="focusField"
-      aria-label="清单名称"
-      cursor-spacing="40"
-    />
-    <view wx:if="{{issueCount}}" class="note"
-      >有 {{issueCount}} 项需要对照课本核查，确认后才能开始。</view
-    >
-    <view wx:if="{{!count}}" class="card empty"
-      ><view class="empty-symbol">＋</view
-      ><view class="empty-title">把第一项内容加进来</view
-      ><view>在上方输入文字或选择照片，清单会显示在这里。</view></view
-    >
-    <view wx:for="{{items}}" wx:key="id" class="item-card">
-      <button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
-        class="item-summary between"
-        data-id="{{item.id}}"
-        bindtap="edit"
-        disabled="{{busy}}"
-        aria-expanded="{{editingId === item.id}}"
-      >
-        <view class="item-number">{{item.number}}</view
-        ><view class="grow"
-          ><view class="item-spoken">{{item.spoken || '待补全内容'}}</view
-          ><view wx:if="{{item.spoken !== item.answer}}" class="small muted"
-            >答案：{{item.answer || '待补全'}}</view
-          ><view wx:if="{{item.generated}}" class="badge warm"
-            >AI 生成 · 请核查</view
-          ></view
-        ><text class="small link"
-          >{{editingId === item.id ? '收起' : '编辑'}}</text
-        >
-      </button>
-      <view wx:if="{{item.issue}}" class="note small"
-        >{{item.issue}}<button
-          hover-class="tap-feedback"
-          hover-stay-time="80"
-          class="mini plain"
-          data-id="{{item.id}}"
-          bindtap="reviewed"
-          disabled="{{busy}}"
-        >
-          已对照原文，确认无误 ✓
-        </button></view
-      >
-      <view wx:if="{{editingId === item.id}}" class="item-edit"
-        ><view class="field-label">朗读内容</view
-        ><input
-          class="{{focusKey === 'spoken-' + item.id ? 'field-focus' : ''}}"
-          value="{{item.spoken}}"
-          data-id="{{item.id}}"
-          data-field="spoken"
-          bindblur="field"
-          maxlength="1000"
-          disabled="{{busy}}"
-          data-focus-key="spoken-{{item.id}}"
-          bindfocus="focusField"
-          aria-label="朗读内容"
-          cursor-spacing="40"
-        /><view class="field-label">标准答案</view
-        ><input
-          class="{{focusKey === 'answer-' + item.id ? 'field-focus' : ''}}"
-          value="{{item.answer}}"
-          data-id="{{item.id}}"
-          data-field="answer"
-          bindblur="field"
-          maxlength="1000"
-          disabled="{{busy}}"
-          data-focus-key="answer-{{item.id}}"
-          bindfocus="focusField"
-          aria-label="标准答案"
-          cursor-spacing="40"
-        /><view class="field-label">发音替换（可选）</view
-        ><input
-          class="{{focusKey === 'pronunciation-' + item.id ? 'field-focus' : ''}}"
-          value="{{item.pronunciation}}"
-          data-id="{{item.id}}"
-          data-field="pronunciation"
-          bindblur="field"
-          maxlength="1000"
-          disabled="{{busy}}"
-          placeholder="只影响发音，不修改标准答案"
-          data-focus-key="pronunciation-{{item.id}}"
-          bindfocus="focusField"
-          aria-label="发音替换"
-          cursor-spacing="40"
-        /><view class="small muted source-label">来源：{{item.source}}</view
-        ><view class="row"
-          ><button
-            hover-class="tap-feedback"
-            hover-stay-time="80"
-            class="mini"
-            data-id="{{item.id}}"
-            data-delta="-1"
-            bindtap="move"
-            disabled="{{busy || index === 0}}"
-          >
-            上移</button
-          ><button
-            hover-class="tap-feedback"
-            hover-stay-time="80"
-            class="mini"
-            data-id="{{item.id}}"
-            data-delta="1"
-            bindtap="move"
-            disabled="{{busy || index === count - 1}}"
-          >
-            下移</button
-          ><button
-            hover-class="tap-feedback"
-            hover-stay-time="80"
-            class="mini plain danger"
-            data-id="{{item.id}}"
-            bindtap="remove"
-            disabled="{{busy}}"
-          >
-            删除
-          </button></view
-        ></view
-      >
-    </view>
-    <view class="row list-tools"
-      ><button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
-        class="mini"
-        bindtap="splitWords"
-        disabled="{{!count || busy}}"
-      >
-        按英文单词拆分</button
-      ><button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
-        wx:if="{{sourceText}}"
-        class="plain mini"
-        bindtap="toggleSources"
-      >
-        {{showSources ? '收起原文' : '查看识别原文'}}
-      </button></view
-    >
-    <view wx:if="{{showSources}}" class="card preserve small"
-      >{{sourceText}}</view
-    >
     <view class="card settings-card">
       <button
         hover-class="tap-feedback"
@@ -462,7 +479,9 @@
       </button>
       <view hidden="{{!showSettings}}" class="fold-content"
         ><view class="muted">每项读完后等你，写好了再继续。</view>
-        <view class="field-label">朗读声音</view
+        <view wx:if="{{settingsNotice}}" class="note info"
+          >{{settingsNotice}}</view
+        ><view class="field-label">朗读声音</view
         ><picker
           range="{{voices}}"
           range-key="label"
@@ -508,10 +527,10 @@
             color="#252b25"
         /></view>
         <view class="between setting-line"
-          ><text>允许向助手提问和求提示</text
+          ><text>听写时持续聆听语音指令</text
           ><switch
-            checked="{{settings.allowHints}}"
-            bindchange="hints"
+            checked="{{settings.voiceControl}}"
+            bindchange="voiceControl"
             color="#252b25"
         /></view>
         <view class="between setting-line"
@@ -533,8 +552,29 @@
         </button></view
       >
     </view>
-    <view wx:if="{{pending}}" class="note"
-      ><view>本机有尚未同步的修改</view
+    <view wx:if="{{saveError}}" class="note error"
+      ><view>{{saveError}}</view
+      ><button class="plain mini" bindtap="save" disabled="{{busy}}">
+        重试保存</button
+      ><button
+        wx:if="{{syncConflict}}"
+        class="plain mini"
+        bindtap="cloudVersion"
+        disabled="{{busy}}"
+      >
+        处理云端版本冲突
+      </button></view
+    ><view wx:if="{{localDraft && count}}" class="local-save-hint"
+      >新清单已留在本机，也可以<button
+        class="plain mini"
+        bindtap="save"
+        disabled="{{busy}}"
+      >
+        保存为当前清单
+      </button></view
+    >
+    <view wx:if="{{pending && !saveError}}" class="sync-status"
+      ><view>编辑已保存在本机</view
       ><view class="row"
         ><button
           hover-class="tap-feedback"
@@ -542,14 +582,7 @@
           class="mini plain"
           bindtap="save"
         >
-          立即同步</button
-        ><button
-          hover-class="tap-feedback"
-          hover-stay-time="80"
-          class="mini plain"
-          bindtap="cloudVersion"
-        >
-          载入云端版本
+          立即同步
         </button></view
       ></view
     >
@@ -558,11 +591,11 @@
 <view class="sticky-actions"
   ><view class="sticky-inner between"
     ><view class="grow"
-      ><view class="action-count">{{count}} 项内容</view
+      ><view class="action-count">{{count + typedCount}} 项内容</view
       ><view class="small {{issueCount ? 'issue-label' : 'muted'}}"
         >{{loading ? '正在加载…' : error ? '请先重新加载清单' : issueCount ?
-        issueCount + ' 项待核查' : !count ? '先添加听写内容' :
-        '每项写好后，再继续'}}</view
+        issueCount + ' 项待核查' : typedCount ? '输入将自动加入清单' : !count ?
+        '先添加听写内容' : '每项写好后，再继续'}}</view
       ></view
     ><button
       hover-class="tap-feedback"
@@ -570,9 +603,10 @@
       class="primary"
       bindtap="start"
       loading="{{starting}}"
-      disabled="{{loading || busy || !count || issueCount || error}}"
+      disabled="{{loading || busy || error}}"
     >
-      {{starting ? '准备中…' : '开始听写 →'}}
+      {{starting ? '准备中…' : typedCount ? '加入并开始 →' : issueCount ?
+      '去核对 ' + issueCount + ' 项' : count ? '开始听写 →' : '添加内容 ＋'}}
     </button></view
   ></view
 >

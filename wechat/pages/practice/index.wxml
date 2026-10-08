@@ -1,4 +1,4 @@
-<view class="page practice">
+<view class="page with-actions practice">
   <view wx:if="{{loading}}" class="card state-panel"
     ><view class="loading-indicator"></view
     ><text class="muted">正在准备你的练习…</text></view
@@ -38,66 +38,31 @@
     <view class="listen-card {{phase === 'playing' ? 'is-playing' : ''}}">
       <view class="eyebrow">第 {{index}} 项 · {{speed}} 倍速</view
       ><view wx:if="{{phase === 'preparing'}}" class="loading-indicator"></view>
-      <view class="record-player" aria-hidden="true"
-        ><view class="record-ring ring-one"></view
+      <button
+        class="record-player"
+        bindtap="togglePlayback"
+        hover-class="tap-feedback"
+        disabled="{{phase === 'completed' || phase === 'confirming'}}"
+        aria-label="{{phase === 'playing' || phase === 'preparing' ? '暂停朗读' : phase === 'waiting' ? '重听当前项' : '开始朗读当前项'}}"
+      >
+        <view class="record-ring ring-one"></view
         ><view class="record-ring ring-two"></view
         ><view class="record-ring ring-three"></view
         ><view class="listening-symbol"
           ><view></view><view></view><view></view><view></view><view></view
-        ></view> </view
+        ></view></button
       ><view class="listen-title">{{label}}</view>
       <view class="listen-subtitle"
         >{{phase === 'waiting' ? '写好了再继续，我会一直等你。' : phase ===
         'playing' ? '先听清楚，再慢慢写。' : phase === 'preparing' ?
         '正在获取朗读音频，请稍候。' : phase === 'completed' ?
         '进度已保留，接下来核查答案。' : phase === 'error' ?
-        '检查网络后，可以重试当前项。' : '准备好后，点一下继续。'}}</view
+        '检查网络后，可以重试当前项。' : voiceEnabled ?
+        '准备好后，说“开始”或点继续。' : '准备好后，点一下继续。'}}</view
       >
       <view wx:if="{{answer}}" class="revealed-answer">{{answer}}</view>
       <view wx:if="{{marked}}" class="badge warm">已标记 · 这项再练练</view>
       <view wx:if="{{error}}" class="note error">{{error}}</view>
-    </view>
-    <view class="primary-controls">
-      <button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
-        wx:if="{{phase === 'waiting'}}"
-        class="primary"
-        data-intent="next"
-        bindtap="tapAction"
-      >
-        {{index === total ? '写好了，完成听写 ✓' : '写好了，下一项 →'}}
-      </button>
-      <button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
-        wx:elif="{{phase === 'playing' || phase === 'preparing'}}"
-        class="primary"
-        data-intent="pause"
-        bindtap="tapAction"
-      >
-        暂停一下
-      </button>
-      <button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
-        wx:elif="{{phase === 'completed'}}"
-        class="primary"
-        bindtap="finishRetry"
-      >
-        查看听写结果
-      </button>
-      <button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
-        wx:else
-        class="primary"
-        data-intent="resume"
-        bindtap="tapAction"
-        disabled="{{!total || phase === 'confirming'}}"
-      >
-        {{phase === 'error' ? '重试当前项' : '继续听写'}}
-      </button>
     </view>
     <view class="quick-controls"
       ><button
@@ -111,17 +76,9 @@
       ><button
         hover-class="tap-feedback"
         hover-stay-time="80"
-        data-intent="repeat"
-        bindtap="tapAction"
-        disabled="{{phase === 'completed'}}"
-      >
-        再读一遍</button
-      ><button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
         data-intent="slower"
         bindtap="tapAction"
-        disabled="{{phase === 'completed'}}"
+        disabled="{{phase === 'completed' || speed <= 0.5}}"
       >
         慢一点</button
       ><button
@@ -129,29 +86,11 @@
         hover-stay-time="80"
         data-intent="mark"
         bindtap="tapAction"
-        disabled="{{marked || phase === 'completed'}}"
+        disabled="{{phase === 'completed'}}"
+        aria-pressed="{{marked}}"
+        class="{{marked ? 'marked-control' : ''}}"
       >
-        标记不会
-      </button></view
-    >
-    <view wx:if="{{allowHints}}" class="hint-actions"
-      ><button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
-        class="plain mini"
-        data-intent="explain"
-        bindtap="tapAction"
-        disabled="{{assistantBusy || phase === 'completed'}}"
-        loading="{{assistantBusy}}"
-      >
-        给我一点提示</button
-      ><button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
-        class="plain mini"
-        bindtap="reveal"
-      >
-        {{revealed ? '收起答案' : '看一眼答案'}}
+        {{marked ? '已标记 · 取消' : '标记不会'}}
       </button></view
     >
     <view wx:if="{{syncError}}" class="note error"
@@ -164,105 +103,124 @@
         重试同步
       </button></view
     >
-    <view class="card conversation">
-      <view class="between"
-        ><view class="section-title">听写助手</view
-        ><view class="badge">AI</view></view
-      >
-      <view class="muted">可以说“我没听清”，也可以聊聊怎么记住它。</view>
-      <view class="between narration-setting"
-        ><text class="small muted">自动朗读讲解与回复</text
-        ><switch color="#252b25" checked="{{autoSpeak}}" bindchange="autoSpeak"
-      /></view>
-      <view wx:for="{{turns}}" wx:key="id" class="turn {{item.role}}">
-        <view class="turn-role"
-          >{{item.role === 'user' ? '我' : '听见 · AI'}}</view
-        >
-        <block wx:if="{{item.explanation}}"
-          ><view class="explanation-title">{{item.explanation.title}}</view
-          ><view class="preserve">{{item.explanation.summary}}</view
+    <view class="card voice-control">
+      <view class="between">
+        <view class="row grow"
           ><view
-            wx:for="{{item.explanation.sections}}"
-            wx:for-item="section"
-            wx:key="index"
-            class="explanation-section"
-            ><view class="section-label">{{section.label}}</view
-            ><view class="preserve">{{section.text}}</view></view
-          ></block
+            class="mic-indicator {{micState === 'listening' || micState === 'speech' ? 'is-listening' : ''}}"
+            aria-hidden="true"
+            ><view></view><view></view><view></view></view
+          ><view class="section-title">语音控制</view></view
         >
-        <view wx:else class="preserve">{{item.text}}</view>
-        <button
-          hover-class="tap-feedback"
-          hover-stay-time="80"
-          wx:if="{{item.role === 'assistant' && speakingId !== item.id}}"
-          class="plain mini speak-button"
-          data-id="{{item.id}}"
-          bindtap="speakTurn"
-        >
-          朗读这段话
-        </button>
-        <button
-          hover-class="tap-feedback"
-          hover-stay-time="80"
-          wx:if="{{speakingId === item.id}}"
-          class="plain mini speak-button"
-          bindtap="stopNarration"
-        >
-          停止朗读 ■
-        </button>
+        <switch
+          checked="{{voiceEnabled}}"
+          bindchange="voiceToggle"
+          color="#252b25"
+          disabled="{{phase === 'completed'}}"
+          aria-label="持续聆听语音指令"
+        />
       </view>
-      <view wx:if="{{assistantBusy}}" class="assistant-loading"
-        ><view class="loading-indicator"></view>正在思考你的问题…</view
-      ><view wx:if="{{feedback}}" class="feedback preserve">{{feedback}}</view>
-      <view class="row composer"
-        ><input
-          cursor-spacing="32"
-          class="{{focusKey === 'field-1' ? 'field-focus' : ''}} grow"
-          value="{{input}}"
-          bindinput="input"
-          bindconfirm="send"
-          maxlength="3000"
-          confirm-type="send"
-          placeholder="想问什么，直接告诉我"
-          disabled="{{assistantBusy || recordBusy || phase === 'completed'}}"
-          data-focus-key="field-1"
-          bindfocus="focusField"
-          aria-label="想问听写助手的问题"
-          bindblur="blurField"
-        /><button
-          hover-class="tap-feedback"
-          hover-stay-time="80"
-          class="mini"
-          bindtap="send"
-          disabled="{{!input || assistantBusy || recordBusy || phase === 'completed'}}"
-        >
-          发送
-        </button></view
+      <view class="voice-status" aria-live="polite"
+        >{{micState === 'starting' ? '正在开启麦克风…' : micState === 'speech' ?
+        '听到你了，说完会自动处理' : micState === 'processing' ?
+        '正在识别你说的话…' : micState === 'listening' ?
+        '正在听，你可以直接说话' : micState === 'muted' ? (phase ===
+        'confirming' ? '确认结束期间暂不识别' : '正在朗读，读完自动接着听') :
+        micState === 'error' ? '语音暂不可用，按钮仍可使用' :
+        '语音已关闭，可用下方按钮操作'}}</view
+      >
+      <view wx:if="{{voiceEnabled}}" class="voice-examples"
+        ><text>“写好了”</text><text>“再读一遍”</text><text>“慢一点”</text></view
+      >
+      <view wx:if="{{heard}}" class="voice-receipt"
+        ><view class="small muted">听到：{{heard}}</view
+        ><view>{{voiceFeedback || '正在理解这句话…'}}</view></view
+      >
+      <view wx:if="{{voiceError}}" class="note error"
+        ><view>{{voiceError}}</view
+        ><view class="row"
+          ><button
+            class="mini plain"
+            bindtap="retryListening"
+            hover-class="tap-feedback"
+          >
+            重新开启</button
+          ><button
+            class="mini plain"
+            bindtap="permissions"
+            hover-class="tap-feedback"
+          >
+            录音权限设置
+          </button></view
+        ></view
       >
       <button
+        class="plain mini voice-help-toggle"
+        bindtap="voiceHelp"
+        aria-expanded="{{showVoiceHelp}}"
         hover-class="tap-feedback"
-        hover-stay-time="80"
-        class="voice-button {{recording ? 'recording' : ''}}"
-        bindtap="voice"
-        loading="{{recordBusy && !recording}}"
-        disabled="{{phase === 'completed' || (recordBusy && !recording)}}"
       >
-        {{recording ? '说完了，发送录音 ↑' : recordBusy ? '正在转写…' :
-        '用语音和我说'}}
+        {{showVoiceHelp ? '收起说明 −' : '还可以怎么说 ＋'}}
       </button>
-      <button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
-        wx:if="{{assistantBusy}}"
-        class="plain mini"
-        bindtap="cancelAssistant"
-      >
-        取消这次提问
-      </button>
-      <view class="small muted ai-note"
-        >AI 的解释可能有误，记得对照课本核查。</view
+      <view wx:if="{{showVoiceHelp}}" class="voice-help small muted"
+        >“等一下”“继续”“上一个”“快一点”“标记不会”“结束听写”也可以。开启后不用逐句按录音键，说完停顿一下即可。朗读时不识别语音，避免误听题目；离开听写页会停止录音。</view
       >
     </view>
   </block>
+</view>
+<view wx:if="{{total && !loading}}" class="sticky-actions practice-dock"
+  ><view class="sticky-inner primary-controls"
+    ><button
+      class="secondary replay-control"
+      hover-class="tap-feedback"
+      data-intent="repeat"
+      bindtap="tapAction"
+      disabled="{{phase === 'completed' || phase === 'confirming'}}"
+    >
+      再读一遍
+    </button>
+    <button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      wx:if="{{phase === 'waiting'}}"
+      class="primary grow"
+      data-intent="next"
+      bindtap="tapAction"
+    >
+      {{index === total ? '写好了，完成听写 ✓' : '写好了，下一项 →'}}
+    </button>
+    <button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      wx:elif="{{phase === 'playing' || phase === 'preparing'}}"
+      class="primary grow"
+      data-intent="pause"
+      bindtap="tapAction"
+    >
+      暂停一下
+    </button>
+    <button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      wx:elif="{{phase === 'completed'}}"
+      class="primary grow"
+      bindtap="finishRetry"
+      loading="{{finishing}}"
+      disabled="{{finishing}}"
+    >
+      {{finishing ? '正在保存…' : '查看听写结果'}}
+    </button>
+    <button
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      wx:else
+      class="primary grow"
+      data-intent="resume"
+      bindtap="tapAction"
+      disabled="{{!total || phase === 'confirming'}}"
+    >
+      {{phase === 'error' ? '重试当前项' : '继续听写'}}
+    </button>
+  </view>
 </view>
 <privacy-gate />

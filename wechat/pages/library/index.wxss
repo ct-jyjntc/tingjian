@@ -50,12 +50,12 @@
   .wrong-card .grow {
     min-width: 300rpx;
   }
-  .sticky-inner {
+  .library-selection-action {
     align-items: stretch;
     flex-direction: column;
     gap: 12rpx;
   }
-  .sticky-inner > button {
+  .library-selection-action > button {
     width: 100%;
   }
   .with-actions {
@@ -228,4 +228,53 @@
   .library.with-actions {
     padding-bottom: calc(420rpx + env(safe-area-inset-bottom));
   }
+}
+.selection-toolbar {
+  margin: 14rpx 0 0;
+}
+.selection-toolbar button {
+  padding-right: 0;
+}
+.word-selection {
+  min-height: 88rpx;
+}
+.word-selection checkbox {
+  flex-shrink: 0;
+}
+.wrong-card {
+  margin-top: 14rpx;
+}
+.wrong-answer {
+  font-size: 34rpx;
+}
+.library-actions .section-title {
+  font-size: 29rpx;
+}
+.library-cover {
+  min-height: 205rpx;
+  padding-bottom: 18rpx;
+}
+.library-cover .page-description {
+  max-width: 370rpx;
+  font-size: 24rpx;
+}
+@media (max-width: 360px) {
+  .wrong-card {
+    gap: 10rpx;
+  }
+  .word-selection {
+    gap: 10rpx;
+  }
+  .library-cover .page-description {
+    max-width: 370rpx;
+  }
+}
+
+.library-actions .note {
+  margin: 0 0 12rpx;
+  padding: 8rpx 18rpx;
+  overflow-wrap: anywhere;
+  background: #e9eddf;
+  color: #3f5540;
+  border: 0;
 }

@@ -1,24 +1,20 @@
-<view class="page with-actions result">
-  <view class="steps"
-    ><text>01 准备</text><view class="step-line"></view><text>02 听写</text
-    ><view class="step-line"></view
-    ><text class="current">03 核查答案</text></view
-  ><view class="page-header"
-    ><view class="page-title">核对这次的答案</view
+<view class="page with-actions result {{undoLabel ? 'with-undo' : ''}}">
+  <view class="page-header"
+    ><view class="eyebrow">最后一步 · 核对答案</view
+    ><view class="page-title">核对这次听写</view
     ><view class="page-description"
-      >识别只是建议，你的确认才计入结果。</view
+      >对照纸上的答案，按自己的节奏核对。</view
     ></view
   >
   <view wx:if="{{loading}}" class="card state-panel"
-    ><view class="loading-indicator"></view
-    ><text class="muted">正在读取听写记录…</text></view
-  ><view wx:if="{{error}}" class="note error"
+    ><view class="loading-indicator"></view>正在读取听写记录…</view
+  >
+  <view wx:if="{{error}}" class="note error"
     ><view>{{error}}</view
     ><button
-      hover-class="tap-feedback"
-      hover-stay-time="80"
       wx:if="{{!total}}"
       class="plain mini"
+      hover-class="tap-feedback"
       bindtap="retryLoad"
     >
       重新加载
@@ -30,39 +26,41 @@
       ><view class="between"
         ><view
           ><view class="score-caption"
-            >{{confirmed ? '已核查正确率' : '等待核查'}}</view
+            >{{confirmed ? '已核对部分的正确率' : '等你核对'}}</view
           ><view class="big-score">{{accuracy}}</view></view
         ><view class="overview-detail"
-          ><view>听写 {{written}} / {{total}} 项</view
-          ><view>已核查 {{confirmed}} · 正确 {{correct}}</view></view
+          ><view class="review-count"
+            >{{confirmed}}<text> / {{total}} 项</text></view
+          ><view>正确 {{correct}} · 需复习 {{wrong}}</view></view
         ></view
       ><view class="review-progress"
         ><progress
-          percent="{{total ? confirmed / total * 100 : 0}}"
+          percent="{{confirmed / total * 100}}"
           stroke-width="4"
           activeColor="#252b25"
           backgroundColor="#e7dfbb"
           border-radius="4"
         /><view class="small"
-          >{{confirmed === total ? '全部核查完成，可以保存了' : '还有 ' + (total
-          - confirmed) + ' 项待核查'}}</view
+          >{{remaining ? '还有 ' + remaining + ' 项没有核对' : pending ?
+          '全部核对好了，保存后就完成了' : '核查结果已保存'}}</view
         ></view
       ></view
     >
-    <view class="card"
+    <view class="photo-review {{photo ? 'has-photo' : ''}}"
       ><view class="between"
-        ><view class="section-title">照片识别</view
+        ><view class="grow"
+          ><view class="section-title">用照片辅助核查</view
+          ><view class="small muted">可选 · 识别后由你确认</view></view
         ><button
-          hover-class="tap-feedback"
-          hover-stay-time="80"
           class="mini"
           bindtap="choose"
           disabled="{{busy}}"
+          hover-class="tap-feedback"
         >
-          添加答案照片
+          <image class="ui-icon" src="/assets/camera-active.png" /><text
+            >{{photo ? '换照片' : '选照片'}}</text
+          >
         </button></view
-      ><view class="muted"
-        >也可以直接在下方填写答案。无法辨认的内容不算错。</view
       ><image
         wx:if="{{photo}}"
         class="answer-photo"
@@ -70,150 +68,302 @@
         mode="aspectFit"
         bindtap="preview"
       /><button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
         wx:if="{{photo}}"
         class="primary photo-submit"
         bindtap="recognize"
         disabled="{{busy}}"
         loading="{{recognizing}}"
+        hover-class="tap-feedback"
       >
-        {{recognizing ? '正在识别与核对…' : '识别这张答案'}}
+        {{recognizing ? '正在识别…' : '识别这张答案'}}</button
+      ><button wx:if="{{recognizing}}" class="plain mini" bindtap="cancel">
+        取消识别
       </button></view
     >
-    <view wx:if="{{message}}" class="note">{{message}}</view
-    ><button
-      hover-class="tap-feedback"
-      hover-stay-time="80"
-      wx:if="{{recognizing}}"
-      class="plain"
-      bindtap="cancel"
+    <view wx:if="{{taskError}}" class="note error">{{taskError}}</view
+    ><view wx:if="{{message}}" class="note info">{{message}}</view>
+    <view id="review-list" class="review-toolbar"
+      ><view class="between review-heading">
+        <view class="section-title">答案清单</view>
+        <button
+          class="plain mini"
+          bindtap="toggleRules"
+          aria-expanded="{{showRules}}"
+          hover-class="tap-feedback"
+        >
+          核查规则 {{showRules ? '−' : '＋'}}
+        </button>
+      </view>
+      <view class="segmented"
+        ><button
+          data-filter="pending"
+          bindtap="filter"
+          aria-pressed="{{reviewFilter === 'pending'}}"
+          class="{{reviewFilter === 'pending' ? 'active' : ''}}"
+          hover-class="tap-feedback"
+        >
+          未核对 {{remaining}}</button
+        ><button
+          data-filter="wrong"
+          bindtap="filter"
+          aria-pressed="{{reviewFilter === 'wrong'}}"
+          class="{{reviewFilter === 'wrong' ? 'active' : ''}}"
+          hover-class="tap-feedback"
+        >
+          需复习 {{wrong}}</button
+        ><button
+          data-filter="all"
+          bindtap="filter"
+          aria-pressed="{{reviewFilter === 'all'}}"
+          class="{{reviewFilter === 'all' ? 'active' : ''}}"
+          hover-class="tap-feedback"
+        >
+          全部 {{total}}
+        </button></view
+      ></view
     >
-      取消 AI 识别
-    </button>
-    <view class="card grading-rules"
-      ><button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
-        class="fold-header between"
-        bindtap="toggleRules"
-        aria-expanded="{{showRules}}"
-      >
-        <view
-          ><view class="section-title">核查规则</view
-          ><view class="fold-summary"
-            >{{caseSensitive ? '区分大小写' : '忽略大小写'}} · {{punctuation ?
-            '严格比较标点' : '忽略标点差异'}}</view
-          ></view
-        ><text class="fold-indicator"
-          >{{showRules ? '收起 −' : '调整 ＋'}}</text
-        ></button
-      ><view hidden="{{!showRules}}"
-        ><view class="between"
-          ><text class="small muted">区分大小写</text
-          ><switch
-            checked="{{caseSensitive}}"
-            color="#252b25"
-            data-rule="caseSensitive"
-            bindchange="rules"
-            disabled="{{busy}}" /></view
-        ><view class="between"
-          ><text class="small muted">严格比较标点</text
-          ><switch
-            checked="{{punctuation}}"
-            color="#252b25"
-            data-rule="punctuation"
-            bindchange="rules"
-            disabled="{{busy}}" /></view></view
-    ></view>
-    <view class="note info"
-      >逐项核对文字与题号，再勾选“已核查”。只有确认的错误或漏写会进入错词本。</view
-    >
-    <view
-      wx:for="{{rows}}"
-      wx:key="id"
-      class="card result-item {{item.confirmed ? (item.status === '正确' ? 'is-correct' : 'needs-practice') : 'unconfirmed'}}"
-    >
-      <view class="between"
-        ><view class="result-number">第 {{item.number}} 项</view
-        ><view
-          class="badge {{!item.confirmed ? 'warm' : item.status === '正确' ? 'success' : 'danger'}}"
-          >{{item.confirmed ? item.status : '待核查 · ' + item.status}}</view
-        ></view
-      >
-      <view class="field-label">标准答案</view
-      ><view class="expected">{{item.answer}}</view
-      ><view wx:if="{{item.spoken !== item.answer}}" class="small muted"
-        >朗读提示：{{item.spoken}}</view
-      >
-      <view class="field-label">你写下的答案</view
-      ><input
-        class="{{focusKey === 'answer-' + index ? 'field-focus' : ''}}"
-        value="{{item.recognized}}"
-        data-index="{{index}}"
-        bindinput="edit"
-        maxlength="4000"
-        placeholder="手动填写或修正识别文字"
+    <view wx:if="{{candidateCorrect}}" class="batch-review">
+      <view class="small muted">{{candidateCorrect}} 项识别文字与答案一致</view>
+      <button
+        class="plain mini"
+        bindtap="confirmCorrect"
         disabled="{{busy}}"
-        data-focus-key="answer-{{index}}"
-        bindfocus="focusField"
-        aria-label="你写下的答案"
-        bindblur="blurField"
-        cursor-spacing="40"
-      />
-      <view class="reason">{{item.reason}}</view
-      ><checkbox-group data-index="{{index}}" bindchange="check"
-        ><label class="confirmation"
-          ><checkbox
-            value="confirmed"
-            checked="{{item.confirmed}}"
-            color="#252b25"
-            disabled="{{busy}}"
-          />已核查文字与题号</label
-        ></checkbox-group
-      >
-    </view>
-    <view wx:if="{{pending}}" class="note"
-      ><view>核查修改已留在本机，点击下方按钮同步。</view
-      ><button
         hover-class="tap-feedback"
-        hover-stay-time="80"
+      >
+        核对后批量确认 →
+      </button>
+    </view>
+    <view wx:if="{{showRules}}" class="card grading-rules"
+      ><view class="between"
+        ><text>区分大小写</text
+        ><switch
+          checked="{{caseSensitive}}"
+          color="#252b25"
+          data-rule="caseSensitive"
+          bindchange="rules"
+          disabled="{{busy}}" /></view
+      ><view class="between"
+        ><text>严格比较标点</text
+        ><switch
+          checked="{{punctuation}}"
+          color="#252b25"
+          data-rule="punctuation"
+          bindchange="rules"
+          disabled="{{busy}}" /></view
+      ><view class="small muted"
+        >规则影响文字比对；已对照纸面标记的对错保留。</view
+      ></view
+    >
+    <view wx:if="{{!rows.length}}" class="card empty"
+      ><view class="empty-symbol">✓</view
+      ><view class="empty-title"
+        >{{reviewFilter === 'pending' ? '这一轮核对完了' :
+        '暂时没有需要复习的词'}}</view
+      ><view>可以切到“全部”回看每一项。</view
+      ><button class="plain mini" data-filter="all" bindtap="filter">
+        查看全部答案
+      </button></view
+    >
+    <view wx:if="{{rows.length}}" class="answer-sheet">
+      <view class="sheet-heading"
+        ><text>题号 · 标准答案</text><text>核查结果</text></view
+      >
+      <view
+        wx:for="{{rows}}"
+        wx:key="id"
+        id="result-{{item.number}}"
+        class="result-item {{item.confirmed ? (item.status === '正确' ? 'is-correct' : 'needs-practice') : 'unconfirmed'}} {{editingIndex === item.number - 1 ? 'is-editing' : ''}}"
+      >
+        <view class="result-main">
+          <view class="result-number" aria-label="第 {{item.number}} 项"
+            >{{item.number < 10 ? '0' + item.number : item.number}}</view
+          >
+          <view class="answer-content">
+            <view class="expected">{{item.answer}}</view>
+            <view wx:if="{{item.spoken !== item.answer}}" class="spoken-prompt"
+              >朗读提示：{{item.spoken}}</view
+            >
+            <view
+              wx:if="{{item.recognized && (!item.confirmed || item.recognized !== item.answer) && editingIndex !== item.number - 1}}"
+              class="recognized-line"
+            >
+              <text class="recognized-label">作答文字</text
+              ><text class="recognized-value">{{item.recognized}}</text>
+            </view>
+          </view>
+          <button
+            class="result-adjust"
+            data-index="{{item.number - 1}}"
+            bindtap="editRow"
+            disabled="{{busy}}"
+            hover-class="tap-feedback"
+            aria-expanded="{{editingIndex === item.number - 1}}"
+            aria-label="{{editingIndex === item.number - 1 ? '收起' : '调整'}}第 {{item.number}} 项作答与核查结果"
+          >
+            <view class="result-status"
+              ><text class="status-symbol"
+                >{{!item.confirmed ? '·' : item.status === '正确' ? '✓' :
+                item.status === '漏写' ? '−' : '×'}}</text
+              >{{item.confirmed ? item.status : '待核对'}}</view
+            >
+            <view class="adjust-label"
+              >{{editingIndex === item.number - 1 ? '收起' : item.confirmed ?
+              '调整' : item.recognized ? '修正文字' : '录入作答'}}<text
+                class="adjust-chevron {{editingIndex === item.number - 1 ? 'is-open' : ''}}"
+              ></text
+            ></view>
+          </button>
+        </view>
+        <view
+          wx:if="{{!item.confirmed || editingIndex === item.number - 1}}"
+          class="assessment-actions"
+        >
+          <button
+            class="assess-correct {{item.confirmed && item.status === '正确' ? 'is-selected' : ''}}"
+            data-index="{{item.number - 1}}"
+            data-status="correct"
+            bindtap="assess"
+            disabled="{{busy}}"
+            hover-class="tap-feedback"
+            aria-label="第 {{item.number}} 项写对了"
+            aria-pressed="{{item.confirmed && item.status === '正确'}}"
+          >
+            <text>✓</text> 写对了
+          </button>
+          <button
+            class="assess-wrong {{item.confirmed && item.status === '错误' ? 'is-selected' : ''}}"
+            data-index="{{item.number - 1}}"
+            data-status="wrong"
+            bindtap="assess"
+            disabled="{{busy}}"
+            hover-class="tap-feedback"
+            aria-label="第 {{item.number}} 项写错了"
+            aria-pressed="{{item.confirmed && item.status === '错误'}}"
+          >
+            <text>×</text> 写错了
+          </button>
+          <button
+            class="assess-missing {{item.confirmed && item.status === '漏写' ? 'is-selected' : ''}}"
+            data-index="{{item.number - 1}}"
+            data-status="missing"
+            bindtap="assess"
+            disabled="{{busy}}"
+            hover-class="tap-feedback"
+            aria-label="第 {{item.number}} 项漏写"
+            aria-pressed="{{item.confirmed && item.status === '漏写'}}"
+          >
+            <text>−</text> 漏写
+          </button>
+        </view>
+        <view wx:if="{{editingIndex === item.number - 1}}" class="result-edit">
+          <view class="edit-heading"
+            >纸上实际写的内容 <text>选填，可修正识别文字</text></view
+          >
+          <textarea
+            class="answer-input {{focusKey === 'answer-' + (item.number - 1) ? 'field-focus' : ''}}"
+            value="{{item.recognized}}"
+            data-index="{{item.number - 1}}"
+            bindinput="edit"
+            maxlength="4000"
+            placeholder="照着纸面填写，保留原来的拼写"
+            disabled="{{busy}}"
+            data-focus-key="answer-{{item.number - 1}}"
+            bindfocus="focusField"
+            bindblur="blurField"
+            aria-label="第 {{item.number}} 项纸上实际写的答案"
+            cursor-spacing="120"
+            auto-height
+          />
+          <checkbox-group data-index="{{item.number - 1}}" bindchange="check"
+            ><label class="confirmation"
+              ><checkbox
+                value="confirmed"
+                checked="{{item.confirmed}}"
+                color="#252b25"
+                disabled="{{busy}}"
+              />已核对作答文字与题号</label
+            ></checkbox-group
+          >
+          <view wx:if="{{item.reason}}" class="reason">{{item.reason}}</view>
+          <button
+            wx:if="{{item.confirmed}}"
+            class="plain mini reset-assessment"
+            data-index="{{item.number - 1}}"
+            data-status="reset"
+            bindtap="assess"
+            disabled="{{busy}}"
+            hover-class="tap-feedback"
+          >
+            暂不确定，改为待核对
+          </button>
+        </view>
+      </view>
+    </view>
+    <view wx:if="{{syncError}}" class="note error"
+      ><view>{{syncError}}</view
+      ><button
+        wx:if="{{syncConflict}}"
         class="plain mini"
         bindtap="reloadCloud"
       >
-        发生冲突时，载入云端版本
+        处理云端版本冲突
       </button></view
     >
     <button
-      hover-class="tap-feedback"
-      hover-stay-time="80"
+      wx:if="{{wrong}}"
       class="secondary again"
       bindtap="practiceAgain"
-      disabled="{{!wrong || busy}}"
-    >
-      把确认的错词再练一遍</button
-    ><button
+      disabled="{{busy}}"
       hover-class="tap-feedback"
-      hover-stay-time="80"
-      class="plain"
-      bindtap="home"
     >
-      回到首页
+      只复习这次的 {{wrong}} 个错词 →
     </button>
   </block>
 </view>
-<view class="sticky-actions"
-  ><view class="sticky-inner"
-    ><button
-      hover-class="tap-feedback"
-      hover-stay-time="80"
-      class="primary save-results"
-      bindtap="save"
-      disabled="{{loading || busy || !total}}"
-      loading="{{saving}}"
+<view wx:if="{{total && !loading}}" class="sticky-actions"
+  ><view class="sticky-inner">
+    <view
+      wx:if="{{undoLabel}}"
+      class="assessment-undo between"
+      aria-live="polite"
     >
-      {{saving ? '正在保存…' : '保存核查结果 · ' + confirmed + ' 项'}}
-    </button></view
+      <text>{{undoLabel}}</text
+      ><button
+        class="plain mini"
+        bindtap="undoAssessment"
+        disabled="{{busy}}"
+        hover-class="tap-feedback"
+      >
+        撤销
+      </button>
+    </view>
+    <view class="between"
+      ><view class="grow"
+        ><view class="action-count">已核对 {{confirmed}} / {{total}} 项</view
+        ><view class="small muted"
+          >{{syncError ? '同步未完成，可重试' : pending ? '修改已留在本机' :
+          confirmed ? '核查结果已保存' : '可以先核对一部分'}}</view
+        ></view
+      ><button
+        wx:if="{{!remaining}}"
+        class="primary"
+        bindtap="done"
+        disabled="{{busy}}"
+        loading="{{saving}}"
+        hover-class="tap-feedback"
+      >
+        {{saving ? '保存中…' : pending ? '保存并完成' : '返回练习本'}}</button
+      ><button
+        wx:else
+        class="primary"
+        bindtap="save"
+        disabled="{{busy || (!pending && !syncError)}}"
+        loading="{{saving}}"
+        hover-class="tap-feedback"
+      >
+        {{saving ? '保存中…' : '保存进度'}}
+      </button></view
+    ></view
   ></view
 >
 <privacy-gate />

@@ -1,5 +1,5 @@
 <view
-  class="page tab-page library {{loggedIn && tab === 'wrong' && wrong.length ? 'with-actions' : ''}}"
+  class="page tab-page library {{loggedIn && tab === 'wrong' && (wrong.length || removedWord) ? 'with-actions' : ''}}"
 >
   <view class="library-cover"
     ><view class="page-header"
@@ -13,6 +13,10 @@
         ><text>练习本</text><view></view><view></view></view
       ><view class="shelf-spark">✦</view></view
     ></view
+  >
+  <view wx:if="{{error && (history.length || wrong.length)}}" class="note error"
+    ><view>{{error}}</view
+    ><button class="plain mini" bindtap="refresh">重试刷新</button></view
   >
   <view class="segmented library-tabs"
     ><button
@@ -52,7 +56,9 @@
     ><view class="loading-indicator"></view
     ><text class="muted">正在整理练习本…</text></view
   >
-  <view wx:elif="{{error}}" class="note error"
+  <view
+    wx:elif="{{error && !history.length && !wrong.length}}"
+    class="note error"
     ><view class="note-title">暂时无法读取练习</view><view>{{error}}</view
     ><button
       hover-class="tap-feedback"
@@ -98,68 +104,93 @@
           ></view
         ><text class="history-arrow" aria-hidden="true">↗</text></button
       ><view class="history-footer"
-        ><text class="small muted">可继续核查答案</text
+        ><text class="small muted">查看答案与核查结果</text
         ><button
           hover-class="tap-feedback"
           hover-stay-time="80"
           class="plain mini"
           data-key="{{item.key}}"
           data-revision="{{item.revision}}"
-          bindtap="removeHistory"
+          bindtap="moreHistory"
           disabled="{{busy}}"
         >
-          删除记录
+          更多 ···
         </button></view
       ></view
     >
   </block>
   <block wx:else>
-    <view class="note info"
-      >只收录你核查后确认的错词，识别不清的答案不会自动加入。</view
+    <view class="between selection-toolbar"
+      ><view class="small muted"
+        >已选 {{selectedCount}} / {{wrong.length}} 个词</view
+      ><button
+        class="plain mini"
+        bindtap="selectAll"
+        disabled="{{busy}}"
+        hover-class="tap-feedback"
+      >
+        {{selectedCount === wrong.length ? '取消全选' : '全选'}}
+      </button></view
     >
     <view wx:if="{{!wrong.length}}" class="card empty"
       ><view class="empty-symbol">✓</view
       ><view class="empty-title">暂时没有待复习的错词</view
       ><view>完成听写并保存核查结果后，错词会自动整理到这里。</view></view
     >
-    <view wx:for="{{wrong}}" wx:key="id" class="card wrong-card"
-      ><view class="word-index">{{index + 1}}</view
-      ><view class="grow"
-        ><view class="wrong-answer">{{item.answer}}</view
-        ><view
-          class="small muted preserve"
-          wx:if="{{item.spoken !== item.answer}}"
-          >提示：{{item.spoken}}</view
-        ></view
-      ><button
-        hover-class="tap-feedback"
-        hover-stay-time="80"
-        class="mini secondary"
-        data-id="{{item.id}}"
-        bindtap="removeWrong"
-        disabled="{{busy}}"
-      >
-        已记住 ✓
-      </button></view
+    <checkbox-group bindchange="selection"
+      ><view wx:for="{{wrong}}" wx:key="id" class="card wrong-card"
+        ><label class="grow row word-selection"
+          ><checkbox
+            value="{{item.id}}"
+            checked="{{item.selected}}"
+            color="#252b25"
+            disabled="{{busy}}"
+          /><view class="grow"
+            ><view class="wrong-answer">{{item.answer}}</view
+            ><view
+              class="small muted preserve"
+              wx:if="{{item.spoken !== item.answer}}"
+              >提示：{{item.spoken}}</view
+            ></view
+          ></label
+        ><button
+          hover-class="tap-feedback"
+          hover-stay-time="80"
+          class="mini secondary"
+          data-id="{{item.id}}"
+          bindtap="removeWrong"
+          disabled="{{busy}}"
+        >
+          已记住 ✓
+        </button></view
+      ></checkbox-group
     >
   </block>
 </view>
 <view
-  wx:if="{{loggedIn && !loading && !error && tab === 'wrong' && wrong.length}}"
+  wx:if="{{loggedIn && !loading && tab === 'wrong' && (wrong.length || removedWord)}}"
   class="sticky-actions library-actions"
-  ><view class="sticky-inner between"
-    ><view class="grow"
-      ><view class="section-title">{{wrong.length}} 个待巩固的词</view
-      ><view class="small muted">先检查清单，再开始听写</view></view
-    ><button
-      hover-class="tap-feedback"
-      hover-stay-time="80"
-      class="primary"
-      bindtap="review"
-      disabled="{{busy}}"
-      loading="{{busy}}"
+  ><view class="sticky-inner">
+    <view wx:if="{{removedWord}}" class="note success between"
+      ><text class="grow">已移出 {{removedWord}}</text
+      ><button class="plain mini" bindtap="undoRemove" disabled="{{busy}}">
+        撤销
+      </button></view
     >
-      开始复习 →
-    </button></view
+    <view wx:if="{{wrong.length}}" class="between library-selection-action"
+      ><view class="grow"
+        ><view class="section-title">已选 {{selectedCount}} 个词</view
+        ><view class="small muted">只把选中的词加入复习清单</view></view
+      ><button
+        hover-class="tap-feedback"
+        hover-stay-time="80"
+        class="primary"
+        bindtap="review"
+        disabled="{{busy || !selectedCount}}"
+        loading="{{busy}}"
+      >
+        {{selectedCount ? '复习所选 →' : '先选要练的词'}}
+      </button></view
+    ></view
   ></view
 >

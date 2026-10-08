@@ -9,3 +9,4 @@ services/tts/cache/
 .local/
 miniprogram/
 project.private.config.json
+.DS_Store

@@ -1,4 +1,4 @@
-import { recordId, speechChunks, type Item, type Settings } from "../shared";
+import { recordId, type Item, type Settings } from "../shared";
 import { ai } from "./api";
 import { Cancelled, TaskScope } from "./task";
 
@@ -28,36 +28,6 @@ export class AudioPlayer {
         );
         if (repeat + 1 < settings.repeats)
           await scope.wait(settings.gap * 1000);
-      }
-      scope.check();
-    } finally {
-      if (this.scope === scope) {
-        this.scope = undefined;
-        state("idle");
-      }
-    }
-  }
-  async narrate(
-    text: string,
-    settings: Settings,
-    state: (state: State) => void,
-  ) {
-    this.stop();
-    const scope = (this.scope = new TaskScope());
-    try {
-      for (const chunk of speechChunks(text)) {
-        await this.segment(
-          chunk,
-          "Chinese",
-          "",
-          {
-            ...settings,
-            voice:
-              settings.ttsBackend === "edge-tts" ? "edge-auto" : settings.voice,
-          },
-          scope,
-          state,
-        );
       }
       scope.check();
     } finally {

@@ -20,8 +20,8 @@ scroll-view {
   box-sizing: border-box;
 }
 button {
-  min-height: 88rpx;
-  min-width: 88rpx;
+  min-height: 44px;
+  min-width: 44px;
   margin: 0;
   padding: 22rpx 28rpx;
   border-radius: 20rpx;
@@ -123,7 +123,7 @@ button:focus-visible {
   padding: 20rpx 16rpx;
 }
 .mini {
-  min-height: 80rpx;
+  min-height: 44px;
   padding: 20rpx 20rpx;
   font-size: 25rpx;
   border-radius: 16rpx;
@@ -400,8 +400,9 @@ switch {
   .page-title {
     font-size: 43rpx;
   }
-  .small {
-    font-size: 26rpx;
+  .small,
+  .muted {
+    font-size: 28rpx;
   }
   .mini {
     min-height: 104rpx;

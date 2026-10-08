@@ -13,17 +13,26 @@ export function confirm(title: string, content: string, confirmText = "确定") 
       title,
       content,
       confirmText,
-      confirmColor: "#5368b9",
+      confirmColor: "#252b25",
       success: (result) => resolve(result.confirm),
       fail: () => resolve(false),
     }),
   );
 }
-export function requireLogin() {
+let loginDestination = "";
+export function requireLogin(destination = "") {
   if (signedIn()) return true;
+  if (/^\/pages\/(editor|practice|result)\/index(?:\?|$)/.test(destination))
+    loginDestination = destination;
   notify("登录后开始练习，记录会保存在你的账号中");
   wx.switchTab({ url: "/pages/profile/index" });
   return false;
+}
+export function continueAfterLogin() {
+  const url = loginDestination;
+  loginDestination = "";
+  if (url) wx.navigateTo({ url });
+  else wx.switchTab({ url: "/pages/home/index" });
 }
 export function dateLabel(timestamp: number) {
   const date = new Date(timestamp);

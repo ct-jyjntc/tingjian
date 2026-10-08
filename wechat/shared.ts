@@ -8,3 +8,4 @@ export * from "../lib/session-agent";
 export * from "../lib/explanation";
 export * from "../lib/study-data";
 export * from "../lib/record-id";
+export * from "../lib/text-normalization";

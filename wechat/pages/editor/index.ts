@@ -1,6 +1,5 @@
 import {
   defaults,
-  newItem,
   itemIssue,
   splitExistingItems,
   extractMaterial,
@@ -12,9 +11,10 @@ import {
   type Settings,
   type Session,
 } from "../../shared";
-import { ai, bootstrap } from "../../utils/api";
+import { ai, bootstrap, cachedBootstrap } from "../../utils/api";
 import {
   readDocument,
+  localDocument,
   writeLocal,
   saveDocument,
   syncDocument,
@@ -32,6 +32,15 @@ import {
   type InputEvent,
   type TapEvent,
 } from "../../utils/ui";
+
+import {
+  readWork,
+  saveWork,
+  clearWork,
+  textItems,
+  inputCount,
+  type EditorWork,
+} from "../../utils/workspace";
 
 type ItemView = Pick<
   Item,
@@ -68,6 +77,11 @@ Page({
     error: "",
     title: "新的听写",
     inputText: "",
+    typedCount: 0,
+    localDraft: false,
+    saveError: "",
+    syncConflict: false,
+    settingsNotice: "",
     inputPlaceholder: "apple\n春天\n去的过去式 → went",
     items: [] as ItemView[],
     count: 0,
@@ -112,25 +126,62 @@ Page({
   scope: null as TaskScope | null,
   player: null as AudioPlayer | null,
   loaded: false,
+  staged: false,
+  inputTimer: null as ReturnType<typeof setTimeout> | null,
   picking: false,
   async onLoad(options: Record<string, string | undefined>) {
-    if (!requireLogin()) return;
+    if (
+      !requireLogin(`/pages/editor/index${options.new === "1" ? "?new=1" : ""}`)
+    )
+      return;
+    this.staged = options.new === "1";
     try {
-      const [draft, settings, service] = await Promise.all([
-        readDocument<DraftDocument>("draft"),
-        readDocument<Settings>("settings"),
-        bootstrap(),
+      const [draft, settings, serviceResult] = await Promise.all([
+        this.staged
+          ? Promise.resolve(null)
+          : readDocument<DraftDocument>("draft"),
+        readDocument<Settings>("settings").catch(() =>
+          localDocument<Settings>("settings"),
+        ),
+        bootstrap().catch(() => cachedBootstrap()),
       ]);
-      this.draft = draft || { title: "新的听写", items: [], materials: [] };
+      const work = this.staged ? readWork<EditorWork>("new-draft") : null;
+      this.draft = this.staged
+        ? work?.draft || { title: "新的听写", items: [], materials: [] }
+        : draft || { title: "新的听写", items: [], materials: [] };
+      const savedInput = this.staged
+        ? work?.input || ""
+        : readWork<string>("draft-input") || "";
+      const service = serviceResult || {
+        ttsBackend: defaults.ttsBackend,
+        voices: [
+          { id: settings?.voice || "edge-auto", label: "默认中英文朗读" },
+        ],
+      };
+      if (!service.voices.length)
+        service.voices = [{ id: "edge-auto", label: "默认中英文朗读" }];
+      this.setData({
+        localDraft: this.staged,
+        inputText: savedInput,
+        typedCount: inputCount(savedInput),
+        settingsNotice: serviceResult
+          ? ""
+          : "暂未刷新声音设置，编辑内容不受影响。",
+      });
       const preferences = {
         ...defaults,
         ...settings,
+        voiceControl: readWork<boolean>("voice-enabled") ?? true,
+        allowHints: false,
         ttsBackend: service.ttsBackend,
       };
       if (!service.voices.some((v) => v.id === preferences.voice))
         preferences.voice = service.voices[0].id;
       this.setData({
-        showImport: !this.draft.items.length || Boolean(options.source),
+        showImport:
+          !this.draft.items.length ||
+          Boolean(options.source) ||
+          Boolean(savedInput.trim()),
         inputMode:
           options.source === "camera" || options.source === "album"
             ? "photo"
@@ -154,47 +205,71 @@ Page({
       this.setData({ loading: false });
     }
   },
+  onShow() {
+    if (!this.loaded) return;
+    try {
+      this.setData({
+        "settings.voiceControl": readWork<boolean>("voice-enabled") ?? true,
+      });
+    } catch (error) {
+      showError(error);
+    }
+  },
   onHide() {
+    this.persistInput();
     if (!this.picking) this.cancel();
     this.player?.stop();
-    if (this.loaded) void syncDocument("draft").catch(() => {});
+    if (this.loaded && !this.staged) void this.syncQuietly();
   },
   onUnload() {
+    this.persistInput();
     this.loaded = false;
     this.cancel();
     this.player?.stop();
   },
-  render() {
+  render(afterRender?: () => void) {
     const material = this.draft.materials[this.draft.materials.length - 1];
-    this.setData({
-      title: this.draft.title,
-      items: viewItems(this.draft.items),
-      count: this.draft.items.length,
-      issueCount: this.draft.items.filter((item) => itemIssue(item)).length,
-      sourceText: this.draft.materials
-        .map((m) => `${m.source}\n${m.text}`)
-        .join("\n\n"),
-      columns: [
-        ...new Set(
-          material?.blocks
-            .map((b) => b.column)
-            .filter((n): n is number => Boolean(n)) || [],
-        ),
-      ].sort((a, b) => a - b),
-      pending: dirty("draft"),
-      undoable: Boolean(this.undoDraft),
-    });
+    this.setData(
+      {
+        title: this.draft.title,
+        items: viewItems(this.draft.items),
+        count: this.draft.items.length,
+        issueCount: this.draft.items.filter((item) => itemIssue(item)).length,
+        sourceText: this.draft.materials
+          .map((m) => `${m.source}\n${m.text}`)
+          .join("\n\n"),
+        columns: [
+          ...new Set(
+            material?.blocks
+              .map((b) => b.column)
+              .filter((n): n is number => Boolean(n)) || [],
+          ),
+        ].sort((a, b) => a - b),
+        pending: !this.staged && dirty("draft"),
+        undoable: Boolean(this.undoDraft),
+      },
+      afterRender,
+    );
   },
   snapshot() {
     this.undoDraft = JSON.parse(JSON.stringify(this.draft)) as DraftDocument;
   },
-  changed() {
+  changed(afterRender?: () => void) {
     try {
-      writeLocal("draft", this.draft);
+      if (this.staged)
+        saveWork<EditorWork>("new-draft", {
+          draft: this.draft,
+          input: this.data.inputText,
+        });
+      else writeLocal("draft", this.draft);
+      this.setData({ saveError: "", syncConflict: false });
     } catch (error) {
-      showError(error);
+      this.setData({
+        saveError:
+          error instanceof Error ? error.message : "保存未完成，请勿关闭页面",
+      });
     }
-    this.render();
+    this.render(afterRender);
   },
   titleInput(event: InputEvent) {
     this.setData({ focusKey: "" });
@@ -202,7 +277,47 @@ Page({
     this.changed();
   },
   textInput(event: InputEvent) {
-    this.setData({ inputText: event.detail.value });
+    this.setData({
+      inputText: event.detail.value,
+      typedCount: inputCount(event.detail.value),
+    });
+    if (this.inputTimer) clearTimeout(this.inputTimer);
+    this.inputTimer = setTimeout(() => this.persistInput(), 300);
+  },
+  persistInput() {
+    if (this.inputTimer) clearTimeout(this.inputTimer);
+    this.inputTimer = null;
+    if (!this.loaded) return;
+    try {
+      if (this.staged)
+        saveWork<EditorWork>("new-draft", {
+          draft: this.draft,
+          input: this.data.inputText,
+        });
+      else saveWork("draft-input", this.data.inputText);
+    } catch (error) {
+      this.setData({
+        saveError:
+          error instanceof Error ? error.message : "输入暂未保存，请勿退出",
+      });
+    }
+  },
+  async syncQuietly() {
+    try {
+      await syncDocument("draft");
+      this.render();
+    } catch (error) {
+      this.setData({
+        saveError:
+          error instanceof Error ? error.message : "同步未完成，本机已保留",
+        syncConflict: (error as { status?: number })?.status === 409,
+      });
+    }
+  },
+  openImport() {
+    this.setData({ showImport: true }, () =>
+      wx.pageScrollTo({ selector: "#import-card", duration: 200 }),
+    );
   },
   togglePanel(event: TapEvent) {
     const key = event.currentTarget.dataset.panel as
@@ -214,7 +329,7 @@ Page({
     this.setData({ inputMode: String(event.currentTarget.dataset.mode) });
   },
   retryLoad() {
-    wx.redirectTo({ url: "/pages/editor/index" });
+    wx.redirectTo({ url: `/pages/editor/index${this.staged ? "?new=1" : ""}` });
   },
   instructionInput(event: InputEvent) {
     this.setData({ instruction: event.detail.value });
@@ -227,27 +342,20 @@ Page({
   },
   addText() {
     if (!this.loaded || this.data.busy) return;
-    const lines = this.data.inputText
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (!lines.length) return;
-    if (this.draft.items.length + lines.length > 300) {
+    const items = textItems(this.data.inputText);
+    if (!items.length) return false;
+    if (this.draft.items.length + items.length > 300) {
       notify("每份清单最多 300 项，请分成两次练习");
-      return;
+      return false;
     }
     this.snapshot();
-    const items = lines.map((line) => {
-      const [spoken, ...answer] = line.split(/\t|→|=>/);
-      return {
-        ...newItem(spoken.trim()),
-        original: line,
-        answer: answer.length ? answer.join(" ").trim() : spoken.trim(),
-      };
-    });
     this.draft.items.push(...items);
-    this.setData({ inputText: "" });
-    this.changed();
+    this.setData({ inputText: "", typedCount: 0, showImport: false });
+    this.changed(() =>
+      wx.pageScrollTo({ selector: "#list-heading", duration: 200 }),
+    );
+    this.persistInput();
+    return true;
   },
   async pick(source?: "camera" | "album") {
     if (!this.loaded || this.data.busy) return;
@@ -347,18 +455,20 @@ Page({
       this.draft.materials = [...materials, result.material];
       this.changed();
       this.setData({
+        showImport: false,
         message: [
           `已识别 ${result.items.length} 项，请对照课本核查。`,
           ...result.warnings,
         ].join("\n"),
       });
+      wx.pageScrollTo({ selector: "#list-heading", duration: 200 });
     } catch (error) {
-      if (!(error instanceof Cancelled))
-        this.setData({
-          taskError:
-            error instanceof Error ? error.message : "任务未完成，请重试",
-          message: "",
-        });
+      if (error instanceof Cancelled) return;
+      this.setData({
+        taskError:
+          error instanceof Error ? error.message : "任务未完成，请重试",
+        message: "",
+      });
       showError(error);
       this.setData({ message: "识别未完成，原清单保留。可以调整图片后重试。" });
     } finally {
@@ -386,6 +496,8 @@ Page({
     const item = this.draft.items.find((item) => item.id === id);
     if (!item) return;
     this.snapshot();
+    if (field === "spoken" && item.spoken === item.answer)
+      item.answer = event.detail.value;
     item[field as "spoken" | "answer" | "pronunciation"] = event.detail.value;
     item.reviewed = false;
     this.changed();
@@ -490,12 +602,11 @@ Page({
       this.proposalBase = base;
       this.setData({ message: "助手已完成，请查看下面的草稿。" });
     } catch (error) {
-      if (!(error instanceof Cancelled))
-        this.setData({
-          taskError:
-            error instanceof Error ? error.message : "任务未完成，请重试",
-          message: "",
-        });
+      this.setData({
+        taskError:
+          error instanceof Error ? error.message : "任务未完成，请重试",
+        message: "",
+      });
       showError(error);
     } finally {
       if (this.scope === scope) {
@@ -519,20 +630,56 @@ Page({
       this.draft.materials.push(material);
     }
     this.result = null;
-    this.setData({ proposal: [], proposalMessage: "", trace: [] });
+    this.setData({
+      proposal: [],
+      proposalMessage: "",
+      trace: [],
+      showAssistant: false,
+    });
     this.changed();
+    wx.pageScrollTo({ selector: "#list-heading", duration: 200 });
   },
   discard() {
     this.result = null;
     this.setData({ proposal: [], proposalMessage: "", trace: [] });
   },
   async save() {
+    if (!this.loaded || this.data.busy) return;
+    if (this.data.inputText.trim() && !this.addText()) return;
+    if (!this.draft.items.length) {
+      this.openImport();
+      return;
+    }
+    this.setData({ busy: true });
     try {
-      await syncDocument("draft");
+      if (this.staged) {
+        const previous = await readDocument<DraftDocument>("draft");
+        if (
+          previous?.items.length &&
+          !(await confirm(
+            "保存为当前清单？",
+            "将替换上次编辑的清单，听写进度和历史保留。",
+            "保存清单",
+          ))
+        )
+          return;
+        await saveDocument("draft", this.draft);
+        clearWork("new-draft");
+        saveWork("draft-input", this.data.inputText);
+        this.staged = false;
+        this.setData({ localDraft: false });
+      } else await syncDocument("draft");
+      this.setData({ saveError: "", syncConflict: false });
       this.render();
-      notify("清单已同步");
+      notify("清单已保存");
     } catch (error) {
-      showError(error);
+      this.setData({
+        saveError:
+          error instanceof Error ? error.message : "同步未完成，本机已保留",
+        syncConflict: (error as { status?: number })?.status === 409,
+      });
+    } finally {
+      this.setData({ busy: false });
     }
   },
   async cloudVersion() {
@@ -550,6 +697,7 @@ Page({
         items: [],
         materials: [],
       };
+      this.setData({ saveError: "", syncConflict: false });
       this.render();
     } catch (error) {
       showError(error);
@@ -580,8 +728,13 @@ Page({
       "settings.order": event.detail.value ? "random" : "original",
     });
   },
-  hints(event: WechatMiniprogram.CustomEvent<{ value: boolean }>) {
-    this.setData({ "settings.allowHints": event.detail.value });
+  voiceControl(event: WechatMiniprogram.CustomEvent<{ value: boolean }>) {
+    this.setData({ "settings.voiceControl": event.detail.value });
+    try {
+      saveWork("voice-enabled", event.detail.value);
+    } catch (error) {
+      showError(error);
+    }
   },
   answers(event: WechatMiniprogram.CustomEvent<{ value: boolean }>) {
     this.setData({ "settings.showAnswer": event.detail.value });
@@ -604,28 +757,41 @@ Page({
   },
   async start() {
     if (!this.loaded || this.data.busy) return;
+    if (this.data.inputText.trim() && !this.addText()) return;
     if (!this.draft.items.length) {
-      notify("先添加一些听写内容吧");
+      this.openImport();
       return;
     }
-    if (
-      this.draft.items.some(
-        (item) => !item.spoken.trim() || !item.answer.trim() || itemIssue(item),
-      )
-    ) {
-      notify("请先补全朗读内容和答案，并核查有提示的项目");
+    const issue = this.draft.items.find(
+      (item) => !item.spoken.trim() || !item.answer.trim() || itemIssue(item),
+    );
+    if (issue) {
+      this.setData({ editingId: issue.id }, () =>
+        wx.pageScrollTo({ selector: `#item-${issue.id}`, duration: 200 }),
+      );
+      notify("请核对这一项的朗读内容与答案");
       return;
     }
     this.setData({ busy: true, starting: true });
     try {
-      const existing = await readDocument<Session>("session");
+      const [existing, previousDraft] = await Promise.all([
+        readDocument<Session>("session"),
+        this.staged
+          ? readDocument<DraftDocument>("draft")
+          : Promise.resolve(null),
+      ]);
+      const warnings = [
+        existing && existing.phase !== "completed"
+          ? "上次未完成的听写进度将被替换。"
+          : "",
+        previousDraft?.items.length ? "新清单将替换上次编辑的清单。" : "",
+      ].filter(Boolean);
       if (
-        existing &&
-        existing.phase !== "completed" &&
+        warnings.length &&
         !(await confirm(
-          "开始新的听写？",
-          "当前未完成的听写进度会被这份新练习替换。",
-          "开始新练习",
+          "开始这份新听写？",
+          warnings.join("\n") + "已保存的历史不受影响。",
+          "开始听写",
         ))
       )
         return;
@@ -642,9 +808,16 @@ Page({
         started: Date.now(),
         settings: { ...this.data.settings },
       };
-      await syncDocument("draft");
+      if (this.staged) await saveDocument("draft", this.draft);
+      else await syncDocument("draft");
       await saveDocument("settings", this.data.settings);
       await saveDocument("session", session);
+      if (this.staged) {
+        clearWork("new-draft");
+        this.staged = false;
+        this.setData({ localDraft: false });
+      }
+      clearWork("draft-input");
       wx.navigateTo({ url: "/pages/practice/index?autostart=1" });
     } catch (error) {
       showError(error);

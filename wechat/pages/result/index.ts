@@ -12,7 +12,8 @@ import {
   dirty,
 } from "../../utils/storage";
 import { choosePhoto, photoData } from "../../utils/media";
-import { TaskScope } from "../../utils/task";
+import { prepareReview } from "../../utils/review";
+import { TaskScope, Cancelled } from "../../utils/task";
 import { formFocus } from "../../behaviors/form";
 import {
   notify,
@@ -50,17 +51,34 @@ Page({
     showRules: false,
     recognizing: false,
     saving: false,
+    reviewFilter: "pending",
+    remaining: 0,
+    candidateCorrect: 0,
+    editingIndex: -1,
+    syncError: "",
+    syncConflict: false,
+    undoLabel: "",
+    taskError: "",
   },
   record: null as HistoryDocument | null,
   key: "",
   scope: null as TaskScope | null,
   picking: false,
+  lastAssessment: null as { index: number; result: Grading } | null,
+  conflictKey: "",
   async onLoad(options: Record<string, string | undefined>) {
-    if (!requireLogin()) return;
+    if (
+      !requireLogin(
+        `/pages/result/index?id=${encodeURIComponent(options.id || "")}`,
+      )
+    )
+      return;
     this.key = `history:${options.id || ""}`;
     try {
       this.record = await readDocument<HistoryDocument>(this.key);
       if (!this.record) throw new Error("没有找到这份听写记录");
+      if (this.record.results.every((result) => result.confirmed))
+        this.setData({ reviewFilter: "all" });
       this.render();
     } catch (error) {
       this.setData({
@@ -76,7 +94,7 @@ Page({
   onUnload() {
     this.cancel();
   },
-  render() {
+  render(afterRender?: () => void) {
     if (!this.record) return;
     const { session, results } = this.record;
     const confirmed = results.filter(
@@ -86,24 +104,43 @@ Page({
     const correct = confirmed.filter(
       (result) => result.status === "正确",
     ).length;
-    this.setData({
-      rows: results.map((result, index) => ({
-        ...result,
-        id: session.items[index].id,
-        number: index + 1,
-        answer: session.items[index].answer,
-        spoken: session.items[index].spoken,
-      })),
-      total: session.items.length,
-      written: session.confirmedCount ?? session.index,
-      confirmed: confirmed.length,
-      correct,
-      wrong: confirmed.length - correct,
-      accuracy: confirmed.length
-        ? `${Math.round((correct / confirmed.length) * 100)}%`
-        : "—",
-      pending: dirty(this.key),
-    });
+    this.setData(
+      {
+        rows: results
+          .map((result, index) => ({
+            ...result,
+            id: session.items[index].id,
+            number: index + 1,
+            answer: session.items[index].answer,
+            spoken: session.items[index].spoken,
+          }))
+          .filter(
+            (result) =>
+              result.number - 1 === this.data.editingIndex ||
+              this.data.reviewFilter === "all" ||
+              (this.data.reviewFilter === "pending"
+                ? !result.confirmed
+                : result.confirmed && ["错误", "漏写"].includes(result.status)),
+          ),
+        remaining: results.length - confirmed.length,
+        candidateCorrect: results.filter(
+          (result) =>
+            !result.confirmed &&
+            result.status === "正确" &&
+            result.recognized.trim(),
+        ).length,
+        total: session.items.length,
+        written: session.confirmedCount ?? session.index,
+        confirmed: confirmed.length,
+        correct,
+        wrong: confirmed.length - correct,
+        accuracy: confirmed.length
+          ? `${Math.round((correct / confirmed.length) * 100)}%`
+          : "—",
+        pending: dirty(this.key) || dirty("wrong"),
+      },
+      afterRender,
+    );
   },
   changed() {
     if (!this.record) return;
@@ -115,6 +152,7 @@ Page({
     }
   },
   async choose() {
+    if (this.data.busy) return;
     this.picking = true;
     try {
       const photo = await choosePhoto();
@@ -145,18 +183,20 @@ Page({
   },
   async recognize() {
     if (!this.record || !this.data.photo || this.data.busy) return;
-    if (
-      this.record.results.some((result) => result.confirmed) &&
-      !(await confirm(
-        "重新识别这张答案？",
-        "会替换当前的批改建议和核查勾选，请在识别后重新核对。",
-        "重新识别",
-      ))
-    )
-      return;
+    this.setData({ busy: true, taskError: "" });
     const scope = (this.scope = new TaskScope());
-    this.setData({ busy: true, recognizing: true });
     try {
+      if (
+        this.record.results.some((result) => result.confirmed) &&
+        !(await confirm(
+          "重新识别答案？",
+          "将替换识别文字与核查标记。取消则保留当前结果。",
+          "重新识别",
+        ))
+      )
+        return;
+      scope.check();
+      this.setData({ recognizing: true });
       const image = await photoData(this.data.photo);
       scope.check();
       const data = await ai<{
@@ -177,6 +217,7 @@ Page({
         scope,
       );
       scope.check();
+      this.clearUndo();
       this.record.results = this.record.session.items.map((item, index) => {
         const matches = data.results.filter((result) => result.index === index),
           match = matches[0];
@@ -206,10 +247,18 @@ Page({
       });
       this.changed();
       this.setData({
-        message:
-          data.warning || "批改建议已生成。请核对文字和题号，再逐项勾选确认。",
+        message: data.warning || "请对照照片核查，识别不清的项目可以稍后处理。",
+        reviewFilter: "pending",
+        editingIndex: -1,
       });
+      this.render();
+      wx.pageScrollTo({ selector: "#review-list", duration: 200 });
     } catch (error) {
+      if (error instanceof Cancelled) return;
+      this.setData({
+        taskError:
+          error instanceof Error ? error.message : "识别未完成，请重试",
+      });
       showError(error);
     } finally {
       if (this.scope === scope) {
@@ -218,10 +267,119 @@ Page({
       }
     }
   },
+  filter(event: TapEvent) {
+    const reviewFilter = String(event.currentTarget.dataset.filter);
+    if (!["all", "pending", "wrong"].includes(reviewFilter)) return;
+    this.setData({ reviewFilter, editingIndex: -1 });
+    this.render(() =>
+      wx.pageScrollTo({ selector: "#review-list", duration: 200 }),
+    );
+  },
+  editRow(event: TapEvent) {
+    const index = Number(event.currentTarget.dataset.index);
+    if (this.data.busy) return;
+    this.setData({
+      editingIndex: this.data.editingIndex === index ? -1 : index,
+    });
+    this.render();
+  },
+  assess(event: TapEvent) {
+    if (!this.record || this.data.busy) return;
+    const index = Number(event.currentTarget.dataset.index),
+      action = event.currentTarget.dataset.status;
+    const item = this.record.session.items[index],
+      previous = this.record.results[index];
+    if (
+      !item ||
+      !previous ||
+      !["correct", "wrong", "missing", "reset"].includes(action)
+    )
+      return;
+    this.lastAssessment = { index, result: { ...previous } };
+    this.setData({
+      undoLabel: `第 ${index + 1} 项${action === "reset" ? "已重新打开" : "已核对"}`,
+    });
+    if (action === "reset")
+      this.record.results[index] = { ...previous, confirmed: false };
+    else
+      this.record.results[index] = {
+        recognized:
+          action === "correct"
+            ? item.answer
+            : action === "missing" || previous.recognized === item.answer
+              ? ""
+              : previous.recognized,
+        status:
+          action === "correct"
+            ? "正确"
+            : action === "missing"
+              ? "漏写"
+              : "错误",
+        confirmed: true,
+        reason:
+          action === "correct"
+            ? "已对照纸面，确认写对"
+            : action === "missing"
+              ? "已对照纸面，确认漏写"
+              : "已对照纸面，确认写错",
+      };
+    this.setData({ editingIndex: -1 });
+    this.changed();
+  },
+  clearUndo() {
+    this.lastAssessment = null;
+    this.setData({ undoLabel: "" });
+  },
+  undoAssessment() {
+    if (!this.record || !this.lastAssessment || this.data.busy) return;
+    const { index, result } = this.lastAssessment;
+    this.record.results[index] = result;
+    this.clearUndo();
+    this.setData({
+      reviewFilter: result.confirmed ? "all" : "pending",
+      editingIndex: -1,
+    });
+    this.changed();
+    wx.pageScrollTo({ selector: `#result-${index + 1}`, duration: 200 });
+  },
+  async confirmCorrect() {
+    if (!this.record || this.data.busy || !this.data.candidateCorrect) return;
+    this.setData({ busy: true });
+    try {
+      const count = this.data.candidateCorrect;
+      if (
+        !(await confirm(
+          `确认这 ${count} 项都写对了？`,
+          "请先逐项对照纸面与题号。只确认识别为正确的项目，错误和无法辨认的项目仍需单独核查。",
+          "已核对无误",
+        ))
+      )
+        return;
+      this.clearUndo();
+      this.record.results = this.record.results.map((result) =>
+        !result.confirmed &&
+        result.status === "正确" &&
+        result.recognized.trim()
+          ? { ...result, confirmed: true }
+          : result,
+      );
+      this.changed();
+    } finally {
+      this.setData({ busy: false });
+    }
+  },
+  async done() {
+    if (!this.record || this.data.busy) return;
+    if ((this.data.pending || this.data.syncError) && !(await this.save()))
+      return;
+    wx.switchTab({ url: "/pages/library/index" });
+  },
   edit(event: InputEvent) {
     if (!this.record || this.data.busy) return;
     const index = Number(event.currentTarget.dataset.index),
       value = event.detail.value;
+    if (!this.record.results[index]) return;
+    this.clearUndo();
     this.record.results[index] = {
       ...this.record.results[index],
       recognized: value,
@@ -241,6 +399,8 @@ Page({
     if (!this.record || this.data.busy) return;
     const index = Number(event.currentTarget.dataset.index),
       result = this.record.results[index];
+    if (!result) return;
+    this.clearUndo();
     result.confirmed = event.detail.value.includes("confirmed");
     if (result.confirmed)
       result.status = grade(
@@ -256,29 +416,47 @@ Page({
     if (!this.record || this.data.busy) return;
     const key = event.currentTarget.dataset.rule as
       "caseSensitive" | "punctuation";
+    if (!["caseSensitive", "punctuation"].includes(key)) return;
+    this.clearUndo();
     this.setData({ [key]: event.detail.value });
-    this.record.results = this.record.results.map((result, index) => ({
-      ...result,
-      confirmed: false,
-      status: ["无法辨认", "待确认"].includes(result.status)
-        ? result.status
-        : grade(
-            result.recognized,
-            this.record!.session.items[index].answer,
-            true,
-            this.data.caseSensitive,
-            this.data.punctuation,
-          ),
-    }));
+    this.record.results = this.record.results.map((result, index) =>
+      result.confirmed &&
+      [
+        "已对照纸面，确认写对",
+        "已对照纸面，确认写错",
+        "已对照纸面，确认漏写",
+      ].includes(result.reason)
+        ? result
+        : {
+            ...result,
+            confirmed: false,
+            status: ["无法辨认", "待确认"].includes(result.status)
+              ? result.status
+              : grade(
+                  result.recognized,
+                  this.record!.session.items[index].answer,
+                  true,
+                  this.data.caseSensitive,
+                  this.data.punctuation,
+                ),
+          },
+    );
     this.changed();
   },
   async save() {
     if (!this.record || this.data.busy) return;
-    this.setData({ busy: true, saving: true });
+    this.setData({
+      busy: true,
+      saving: true,
+      syncError: "",
+      syncConflict: false,
+    });
     try {
       const wrong = (await readDocument<Item[]>("wrong")) || [];
       const sessionIds = new Set(
-        this.record.session.items.map((item) => item.id),
+        this.record.session.items
+          .filter((_, index) => this.record!.results[index].confirmed)
+          .map((item) => item.id),
       );
       const next = wrong.filter((item) => !sessionIds.has(item.id));
       this.record.results.forEach((result, index) => {
@@ -289,31 +467,60 @@ Page({
         throw new Error("错词本已满 300 项，请先整理后再保存");
       writeLocal("wrong", next);
       writeLocal(this.key, this.record);
+      this.conflictKey = this.key;
       await syncDocument(this.key);
+      this.conflictKey = "wrong";
       await syncDocument("wrong");
+      this.conflictKey = "";
+      this.clearUndo();
       this.render();
-      notify("核查结果和错词本已同步");
+      notify(
+        this.data.remaining
+          ? `已保存，还有 ${this.data.remaining} 项可稍后核查`
+          : "核查完成，错词已整理",
+      );
+      return true;
     } catch (error) {
-      showError(error);
+      this.setData({
+        syncError:
+          error instanceof Error ? error.message : "保存未完成，本机修改已保留",
+        syncConflict: (error as { status?: number })?.status === 409,
+      });
+      return false;
     } finally {
+      this.render();
       this.setData({ busy: false, saving: false });
     }
   },
   async reloadCloud() {
-    if (
-      !(await confirm(
-        "载入云端记录？",
-        "会放弃当前尚未同步的批改修改。",
-        "载入云端",
-      ))
-    )
-      return;
+    if (this.data.busy) return;
+    const wrongConflict = this.conflictKey === "wrong";
+    this.setData({ busy: true });
     try {
-      this.record = await readDocument<HistoryDocument>(this.key, true);
+      if (
+        !(await confirm(
+          wrongConflict ? "合并云端错词本？" : "载入云端记录？",
+          wrongConflict
+            ? "先载入最新错词本，再应用本次已核对的结果。其他词语和未核对项保留。"
+            : "会放弃当前尚未同步的核查修改。",
+          wrongConflict ? "载入并合并" : "载入云端",
+        ))
+      )
+        return;
+      if (wrongConflict) await readDocument<Item[]>("wrong", true);
+      else {
+        this.record = await readDocument<HistoryDocument>(this.key, true);
+        this.clearUndo();
+      }
+      this.setData({ syncError: "", syncConflict: false });
       this.render();
     } catch (error) {
       showError(error);
+      return;
+    } finally {
+      this.setData({ busy: false });
     }
+    if (wrongConflict) await this.save();
   },
   async practiceAgain() {
     if (!this.record) return;
@@ -326,25 +533,16 @@ Page({
       notify("先核查答案，确认的错词才能再次练习");
       return;
     }
-    if (
-      !(await confirm(
-        "准备一份错词练习？",
-        "会用这次确认的错词替换当前编辑草稿。听写历史保留。",
-        "准备练习",
-      ))
-    )
+    if (this.data.busy) return;
+    if ((this.data.pending || this.data.syncError) && !(await this.save()))
       return;
+    this.setData({ busy: true });
     try {
-      await readDocument("draft");
-      writeLocal("draft", {
-        title: "再练练这些词",
-        items: wrong.map((item) => ({ ...item, marked: false, hint: false })),
-        materials: [],
-      });
-      await syncDocument("draft");
-      wx.navigateTo({ url: "/pages/editor/index" });
+      await prepareReview(wrong, "再练练这些词");
     } catch (error) {
       showError(error);
+    } finally {
+      this.setData({ busy: false });
     }
   },
   home() {

@@ -1,11 +1,11 @@
-import { Cancelled, TaskScope } from "./task";
+import { Cancelled } from "./task";
 
 function mediaError(error: { errMsg?: string }, fallback: string) {
   const message = error.errMsg || "";
   if (/cancel/i.test(message)) return new Cancelled();
   if (/api scope is not declared in the privacy agreement/i.test(message))
     return new Error(
-      "照片或录音功能尚未完成微信隐私声明，请联系开发者；你可以先使用文字输入",
+      "照片或录音功能尚未完成微信隐私声明，请联系开发者；其余功能仍可使用",
     );
   return new Error(fallback);
 }
@@ -15,9 +15,7 @@ export async function privacyAuthorize() {
     wx.requirePrivacyAuthorize({
       success: () => resolve(),
       fail: (error) =>
-        reject(
-          mediaError(error, "你尚未同意隐私保护指引，可以继续使用文字输入"),
-        ),
+        reject(mediaError(error, "你尚未同意隐私保护指引，照片和语音暂不可用")),
     }),
   );
 }
@@ -98,93 +96,4 @@ export async function photoData(path: string) {
           : "";
   if (!mime) throw new Error("请选择 JPG、PNG 或 WebP 图片");
   return `data:image/${mime};base64,${wx.arrayBufferToBase64(buffer)}`;
-}
-type Capture = {
-  owner: VoiceRecorder;
-  onStart: () => void;
-  finish: (
-    error?: Error,
-    result?: WechatMiniprogram.OnStopListenerResult,
-  ) => void;
-};
-let recordingManager: WechatMiniprogram.RecorderManager | undefined;
-let activeCapture: Capture | null = null;
-function recorderManager() {
-  if (recordingManager) return recordingManager;
-  const manager = (recordingManager = wx.getRecorderManager());
-  // RecorderManager has no off* APIs. Register once, then route events to the
-  // active capture. Keep a cancelled capture until its terminal event arrives.
-  manager.onStart(() => activeCapture?.onStart());
-  manager.onStop((result) => {
-    const capture = activeCapture;
-    activeCapture = null;
-    capture?.finish(undefined, result);
-  });
-  manager.onError((error) => {
-    const capture = activeCapture;
-    activeCapture = null;
-    capture?.finish(mediaError(error, "录音失败，请检查麦克风权限"));
-  });
-  manager.onInterruptionBegin(() => {
-    activeCapture?.finish(new Cancelled());
-    manager.stop();
-  });
-  return manager;
-}
-export class VoiceRecorder {
-  stop() {
-    if (activeCapture?.owner === this) recordingManager?.stop();
-  }
-  async capture(scope: TaskScope, onStart: () => void): Promise<string> {
-    await privacyAuthorize();
-    scope.check();
-    await new Promise<void>((resolve, reject) =>
-      wx.authorize({
-        scope: "scope.record",
-        success: () => resolve(),
-        fail: (error) =>
-          reject(
-            mediaError(
-              error,
-              "麦克风未授权，请在微信设置中允许录音；也可以直接打字",
-            ),
-          ),
-      }),
-    );
-    scope.check();
-    const manager = recorderManager();
-    if (activeCapture) throw new Error("上一段录音尚未结束，请稍后再试");
-    return new Promise((resolve, reject) => {
-      let settled = false,
-        remove = () => {};
-      const capture: Capture = {
-        owner: this,
-        onStart() {
-          if (!scope.cancelled && !settled) onStart();
-        },
-        finish(error, result) {
-          if (settled) return;
-          settled = true;
-          remove();
-          if (error) reject(error);
-          else if (scope.cancelled) reject(new Cancelled());
-          else if (!result || result.duration < 300)
-            reject(new Error("录音太短，请再说一次"));
-          else resolve(result.tempFilePath);
-        },
-      };
-      activeCapture = capture;
-      remove = scope.onCancel(() => {
-        capture.finish(new Cancelled());
-        manager.stop();
-      });
-      manager.start({
-        duration: 20_000,
-        sampleRate: 16000,
-        numberOfChannels: 1,
-        encodeBitRate: 48000,
-        format: "mp3",
-      });
-    });
-  }
 }
