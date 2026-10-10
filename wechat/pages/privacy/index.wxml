@@ -9,7 +9,17 @@
     ><view>运营者：{{config.operator || '服务开放前由运营者填写'}}</view
     ><view class="preserve"
       >联系方式：{{config.contact || '服务开放前由运营者填写'}}</view
-    ></view
+    ><view>小程序备案号：<text selectable>{{registration.number}}</text></view
+    ><view
+      >工信部备案查询：<text selectable>{{registration.queryUrl}}</text></view
+    ><button
+      class="plain mini"
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      bindtap="copyRegistrationUrl"
+    >
+      复制查询地址
+    </button></view
   >
   <view class="card"
     ><view class="section-title">登录与学习记录</view

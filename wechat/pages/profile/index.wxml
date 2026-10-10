@@ -193,6 +193,17 @@
       注销账号并删除学习记录
     </button></view
   >
-  <view class="footer">听见 · 所有功能免费</view>
+  <view class="footer">
+    <view>听见 · 所有功能免费</view>
+    <button
+      class="plain registration-link"
+      hover-class="tap-feedback"
+      hover-stay-time="80"
+      bindtap="privacy"
+      aria-label="小程序备案信息，{{registration.number}}"
+    >
+      {{registration.number}}
+    </button>
+  </view>
 </view>
 <privacy-gate />

@@ -9,8 +9,10 @@ import {
 import { readWork, hasWork, type EditorWork } from "../../utils/workspace";
 import { dirtyCount, syncAll } from "../../utils/storage";
 import { confirm, notify, showError, continueAfterLogin } from "../../utils/ui";
+import { registration } from "../../utils/registration";
 Page({
   data: {
+    registration,
     loggedIn: false,
     agreed: false,
     busy: false,
